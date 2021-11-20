@@ -4,7 +4,10 @@
             "platform.callback-nontrivial": true,
             "platform.stdio-baud-rate": 115200,
             "platform.stdio-buffered-serial": 1,
-            "storage.storage_type": "TDB_INTERNAL"
+            "storage.storage_type": "TDB_INTERNAL",
+            "platform.minimal-printf-enable-floating-point": true,
+            "platform.minimal-printf-set-floating-point-max-decimals": 2,
+            "platform.minimal-printf-enable-64-bit": false
         }
     }
 }

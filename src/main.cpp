@@ -3,6 +3,7 @@
 #include "lte.h"
 #include "log.h"
 #include "config.h"
+#include "environment.h"
 
 static void main_init();
 
@@ -23,4 +24,5 @@ static void main_init() {
     config_init();
     main_event_handler_init();
     lte_init();
+    environment_init();
 }
