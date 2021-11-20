@@ -1,0 +1,10 @@
+{
+    "target_overrides": {
+        "*": {
+            "platform.callback-nontrivial": true,
+            "platform.stdio-baud-rate": 115200,
+            "platform.stdio-buffered-serial": 1,
+            "storage.storage_type": "TDB_INTERNAL"
+        }
+    }
+}
