@@ -1,6 +1,7 @@
 #include "lte.h"
 #include "log.h"
 #include "config.h"
+#include "events.h"
 
 using namespace std::chrono_literals;
 
@@ -21,29 +22,82 @@ Mutex lte_mutex;
 int lte_ping_id = -1;
 int lte_read_messages_id = -1;
 
-typedef struct {
-    const char *command;
-    const char *expected_response;
-    mbed::Callback<void(bool)> callback;
-} lte_send_message_t;
+#define PUBLISH_BUFFER_SIZE 32
+char *lte_publish_mqtt_value_buffer = new char[PUBLISH_BUFFER_SIZE];
 
-Mail<lte_send_message_t, 16> lte_send_queue;
+class LTESendMessage {
+    protected:
+        char *m_command;
+        size_t m_command_size;
+        char *m_expected;
+        size_t m_expected_size;
+        mbed::Callback<void(bool)> m_callback;
+        int m_timeout = TIMEOUT;
+
+    public:
+        LTESendMessage(const char *command, const char *expected, mbed::Callback<void(bool)> callback) :
+            m_callback(callback) {
+            
+            m_command_size = strlen(command);
+            m_command = new char[m_command_size + 1];
+            memcpy(m_command, command, m_command_size);
+            m_command[m_command_size] = 0;
+
+            m_expected_size = strlen(expected);
+            m_expected = new char[m_expected_size + 1];
+            memcpy(m_expected, expected, m_expected_size);
+            m_expected[m_expected_size] = 0;
+        }
+
+        ~LTESendMessage() {
+            delete[] m_command;
+            delete[] m_expected;
+        }
+        
+        const char* get_command() { 
+            return m_command;
+        }
+
+        const char* get_expected() { 
+            return m_expected;
+        }
+
+        mbed::Callback<void(bool)> get_command_callback() {
+            return m_callback;
+        }
+
+        int get_timeout() {
+            return m_timeout;
+        }
+
+        void set_timeout(int timeout) {
+            m_timeout = timeout;
+        }
+};
+
+Queue<LTESendMessage, 16> lte_send_queue;
 Thread lte_send_thread;
 
 void lte_send_thread_handler() {
     while (true) {
-        lte_send_message_t *msg = lte_send_queue.try_get();
-        if (msg != NULL) {
-            log_debug("got from queue: %s on ctx %p", msg->command, ThisThread::get_id());
+        LTESendMessage *msg;
+        if (lte_send_queue.try_get(&msg)) {
+            log_debug("got from queue: %s (%p) on ctx %p", msg->get_command(), msg, ThisThread::get_id());
             lte_mutex.lock();
-            bool result = lte_parser->send(msg->command) && lte_parser->recv(msg->expected_response);
 
-            if (msg->callback) {
-                msg->callback(result);
+            lte_parser->set_timeout(msg->get_timeout());
+            bool result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
+            lte_parser->set_timeout(TIMEOUT);
+
+            mbed::Callback<void(bool)> _cb = msg->get_command_callback();
+            if (_cb) {
+                _cb(result);
             }
 
-            lte_send_queue.free(msg);
+            delete msg;
             lte_mutex.unlock();
+
+            ThisThread::sleep_for(2s);
         }
     }
 }
@@ -56,7 +110,7 @@ void lte_init() {
 
     lte_parser = new ATCmdParser(lte_shield, "\r");
     lte_parser->debug_on(true);
-    lte_parser->set_timeout(1000);
+    lte_parser->set_timeout(TIMEOUT);
     lte_parser->flush();
 
     lte_power_pin = 1;
@@ -230,7 +284,7 @@ void lte_operator_registration() {
                     lte_queue.call(lte_discover_baud_rate);
                 }
 
-                lte_parser->set_timeout(1000);
+                lte_parser->set_timeout(TIMEOUT);
             }
         } else {
             lte_queue.call(lte_mqtt_login);
@@ -310,7 +364,7 @@ void lte_issue_read_messages_request() {
     }
 
     log_debug("exiting read messages");
-    lte_parser->set_timeout(1000);
+    lte_parser->set_timeout(TIMEOUT);
     lte_mutex.unlock();
 }
 
@@ -350,6 +404,7 @@ void lte_mqtt_login() {
         lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
 
         log_debug("mqtt setup completed, we're ready to go on cxt %p", ThisThread::get_id());
+        event_flags.set(FLAG_SYSTEM_READY);
         lte_state = READY;
     } else {
         // sleep for a bit
@@ -357,7 +412,7 @@ void lte_mqtt_login() {
         lte_queue.call(lte_operator_registration);
     }
 
-    lte_parser->set_timeout(1000);
+    lte_parser->set_timeout(TIMEOUT);
     lte_mutex.unlock();
 }
 
@@ -373,23 +428,26 @@ void _send(const char *command, const char *expected_response, mbed::Callback<vo
     lte_mutex.unlock();
 }
 
-bool lte_send(const char *command, const char *expected_response, mbed::Callback<void(bool)> _cb) {
+bool lte_send(const char *command, const char *expected_response, mbed::Callback<void(bool)> _cb, int timeout) {
     if (lte_state != READY) {
         log_debug("send failed, lte_state (%d) not ready", lte_state);
         return false;
     }
 
-    lte_send_message_t *msg = lte_send_queue.try_calloc();
-    msg->callback = _cb;
-    msg->command = command;
-    msg->expected_response = expected_response;
-    bool result = lte_send_queue.put(msg) == 0;
-    log_debug("msg: %p, command: %s (%p)", &msg, command, &command);
+    LTESendMessage *msg = new LTESendMessage(command, expected_response, _cb);
+    msg->set_timeout(timeout);
+
+    bool result = lte_send_queue.try_put(msg);
     return result;
 }
 
+bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, ...) {
+    va_list vl;
+    va_start(vl, timeout);
+    vsprintf(lte_publish_mqtt_value_buffer, value, vl);
+    va_end(vl);
 
-bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb) {
-    std::string command = "AT+UMQTTC=2,0,0,\"" + std::string(topic) + "\",\"" + std::string(value) + "\"";
-    return lte_send(command.c_str(), "+UMQTTC: 2,1", _cb);
+    std::string command = "AT+UMQTTC=2,0,0,\"" + std::string(topic) + "\",\"" + std::string(lte_publish_mqtt_value_buffer) + "\"";
+    memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
+    return lte_send(command.c_str(), "+UMQTTC: 2,1", _cb), timeout;
 }

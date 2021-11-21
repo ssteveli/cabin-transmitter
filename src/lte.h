@@ -4,6 +4,7 @@
 #include "mbed.h"
 
 #define MAX_OPERATORS 5
+#define TIMEOUT 1000
 
 #define NUM_SUPPORTED_BAUD 6
 const unsigned int LTE_SHIELD_SUPPORTED_BAUD[NUM_SUPPORTED_BAUD] = {
@@ -44,7 +45,7 @@ void lte_discover_baud_rate();
 void lte_operator_registration();
 void lte_mqtt_login();
 void lte_init();
-bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb = NULL);
-bool lte_send(const char *command, const char *expected_result, mbed::Callback<void(bool)> _cb = NULL);
+bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout = TIMEOUT, ...);
+bool lte_send(const char *command, const char *expected_result, mbed::Callback<void(bool)> _cb = NULL, int timeout = TIMEOUT);
 
 #endif

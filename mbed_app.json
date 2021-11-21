@@ -7,7 +7,10 @@
             "storage.storage_type": "TDB_INTERNAL",
             "platform.minimal-printf-enable-floating-point": true,
             "platform.minimal-printf-set-floating-point-max-decimals": 2,
-            "platform.minimal-printf-enable-64-bit": false
+            "platform.minimal-printf-enable-64-bit": false,
+            "platform.heap-stats-enabled": true,
+            "platform.cpu-stats-enabled": true,
+            "platform.sys-stats-enabled": true
         }
     }
 }

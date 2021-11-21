@@ -5,6 +5,7 @@
 #include "config.h"
 #include "environment.h"
 #include "rtc.h"
+#include "system.h"
 
 static void main_init();
 
@@ -26,5 +27,6 @@ static void main_init() {
     rtc_start();
     main_event_handler_init();
     lte_init();
+    system_init();
     environment_init();
 }

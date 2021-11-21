@@ -18,7 +18,7 @@ void environment_read_data() {
 
         char *temp_s = (char *)calloc(32, sizeof(char));
         sprintf(temp_s, "%0.2f", sensor.ReadTemperature(FARENHEIT));
-        if (lte_publish("cabin/temp", temp_s, NULL)) {
+        if (lte_publish("cabin/env/temp", temp_s, NULL)) {
             log_debug("published temp on %p", ThisThread::get_id());
         } else {
             log_debug("published temp failed on %p", ThisThread::get_id());
@@ -26,7 +26,7 @@ void environment_read_data() {
 
         char *humidity_s = (char *)calloc(32, sizeof(char));
         sprintf(humidity_s, "%0.2f", sensor.ReadHumidity());
-        if (lte_publish("cabin/humidity", humidity_s, NULL)) {
+        if (lte_publish("cabin/env/humidity", humidity_s, NULL)) {
             log_debug("published humidity on %p", ThisThread::get_id());
         } else {
             log_debug("published humidity failed on %p", ThisThread::get_id());
@@ -42,5 +42,5 @@ void environment_read_data() {
 void environment_init() {
     environment_thread.start(callback(&environment_queue, &EventQueue::dispatch_forever));
     environment_thread.set_priority(osPriorityHigh);
-    environment_queue.call_every(10s, environment_read_data);
+    environment_queue.call_every(120s, environment_read_data);
 }
