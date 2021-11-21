@@ -25,11 +25,10 @@ void os_reporting_worker() {
     while (true) {
         log_debug("os stats waiting for ready flag");
         event_flags.wait_any(FLAG_SYSTEM_READY);
+        log_debug("reporting os information");
 
         mbed_stats_sys_t sys_stats;
         mbed_stats_sys_get(&sys_stats);
-
-        log_debug("reporting os information");
         lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
     }
 }
@@ -58,6 +57,6 @@ void system_read_data() {
 
 void system_init() {
     system_thread.start(callback(&system_queue, &EventQueue::dispatch_forever));
-    system_queue.call_every(60s, system_read_data);
-    system_os_reporting_thread.start(callback(os_reporting_worker));
+    system_queue.call_every(320s, system_read_data);
+    system_os_reporting_thread.start(os_reporting_worker);
 }

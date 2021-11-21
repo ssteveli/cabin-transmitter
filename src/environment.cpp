@@ -14,26 +14,8 @@ void environment_read_data() {
     int result = sensor.readData();
 
     if (result == 0) {
-        log_debug("successfully read environment data");
-
-        char *temp_s = (char *)calloc(32, sizeof(char));
-        sprintf(temp_s, "%0.2f", sensor.ReadTemperature(FARENHEIT));
-        if (lte_publish("cabin/env/temp", temp_s, NULL)) {
-            log_debug("published temp on %p", ThisThread::get_id());
-        } else {
-            log_debug("published temp failed on %p", ThisThread::get_id());
-        }
-
-        char *humidity_s = (char *)calloc(32, sizeof(char));
-        sprintf(humidity_s, "%0.2f", sensor.ReadHumidity());
-        if (lte_publish("cabin/env/humidity", humidity_s, NULL)) {
-            log_debug("published humidity on %p", ThisThread::get_id());
-        } else {
-            log_debug("published humidity failed on %p", ThisThread::get_id());
-        }
-
-        free(temp_s);
-        free(humidity_s);
+        lte_publish("cabin/env/temp", "%0.1f", NULL, TIMEOUT, sensor.ReadTemperature(FARENHEIT));
+        lte_publish("cabin/env/humidity", "%0.1f", NULL, TIMEOUT, sensor.ReadHumidity());
     } else {
         log_debug("dhr error: %i", result);
     }

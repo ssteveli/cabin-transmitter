@@ -145,6 +145,7 @@ void lte_discover_baud_rate() {
     lte_mutex.lock();
 
     lte_state = BAUD_SELECTION;
+    event_flags.clear(FLAG_SYSTEM_READY);
 
     bool success = false;
     bool pwr = true;
@@ -191,6 +192,7 @@ void lte_operator_registration() {
     lte_mutex.lock();
 
     lte_state = OPERATOR_REGISTRATION;
+    event_flags.clear(FLAG_SYSTEM_READY);
 
     log_debug("operator registration staring on cxt %p", ThisThread::get_id());
     lte_parser->set_timeout(5000);
@@ -376,6 +378,8 @@ void lte_mqtt_login() {
     lte_mutex.lock();
 
     lte_state = MQTT_LOGIN;
+    event_flags.clear(FLAG_SYSTEM_READY);
+    
     log_debug("mqtt login on cxt %p", ThisThread::get_id());
 
     lte_parser->set_timeout(60000);
@@ -404,8 +408,8 @@ void lte_mqtt_login() {
         lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
 
         log_debug("mqtt setup completed, we're ready to go on cxt %p", ThisThread::get_id());
-        event_flags.set(FLAG_SYSTEM_READY);
         lte_state = READY;
+        event_flags.set(FLAG_SYSTEM_READY);
     } else {
         // sleep for a bit
         wait_us(30000000);

@@ -3,7 +3,7 @@
 
 #include "mbed.h"
 
-#define FLAG_SYSTEM_READY (1UL << 0)
+static const int FLAG_SYSTEM_READY = 0x01;
 
 static EventFlags event_flags;
 
