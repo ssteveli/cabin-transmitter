@@ -9,7 +9,7 @@
  *
  *  Copyright (C) Wim De Roeve
  *                based on DHT22 sensor library by HO WING KIT
- *                Arduino DHT11 library 
+ *                Arduino DHT11 library
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documnetation files (the "Software"), to deal
@@ -32,112 +32,98 @@
  
 #include "DHT.h"
  
-#define DHT_DATA_BIT_COUNT 41
+#define DHT_DATA_BIT_COUNT 40
  
-DHT::DHT(PinName pin,int DHTtype) {
+DHT::DHT(PinName pin, eType DHTtype)
+{
     _pin = pin;
     _DHTtype = DHTtype;
-    _firsttime=true;
+    _firsttime = true;
 }
  
-DHT::~DHT() {
+DHT::~DHT()
+{
+    
 }
  
-int DHT::readData() {
-    int i, j, retryCount,b;
-    unsigned int bitTimes[DHT_DATA_BIT_COUNT];
+eError DHT::stall(DigitalInOut &io, int const level, int const max_time)
+{
+    int cnt = 0;
+    while (level == io) {
+        if (cnt > max_time) {
+            return ERROR_NO_PATIENCE;
+        }
+        cnt++;
+        wait_us(1);
+    }
+    return ERROR_NONE;
+}
+ 
+eError DHT::readData()
+{
+    uint8_t i = 0, j = 0, b = 0, data_valid = 0;
+    uint32_t bit_value[DHT_DATA_BIT_COUNT] = {0};
  
     eError err = ERROR_NONE;
     time_t currentTime = time(NULL);
  
     DigitalInOut DHT_io(_pin);
  
-    for (i = 0; i < DHT_DATA_BIT_COUNT; i++) {
-        bitTimes[i] = 0;
+    // IO must be in hi state to start
+    if (ERROR_NONE != stall(DHT_io, 0, 250)) {
+        return BUS_BUSY;
     }
  
-    if (!_firsttime) {
-        if (int(currentTime - _lastReadTime) < 2) {
-            err = ERROR_NO_PATIENCE;
-            return err;
-        }
-    } else {
-        _firsttime=false;
-        _lastReadTime=currentTime;
-    }
-    retryCount = 0;
- 
-    do {
-        if (retryCount > 125) {
-            err = BUS_BUSY;
-            return err;
-        }
-        retryCount ++;
-        wait_us(2);
-    } while ((DHT_io==0));
- 
- 
+    // start the transfer
     DHT_io.output();
     DHT_io = 0;
     wait_us(18000);
     DHT_io = 1;
-    wait_us(40);
+    wait_us(30);
     DHT_io.input();
- 
-    retryCount = 0;
-    do {
-        if (retryCount > 40)  {
-            err = ERROR_NOT_PRESENT;
-            return err;
-        }
-        retryCount++;
-        wait_us(1);
-    } while ((DHT_io==1));
- 
-    if (err != ERROR_NONE) {
-        return err;
+    // wait till the sensor grabs the bus
+    if (ERROR_NONE != stall(DHT_io, 1, 100)) {
+        return ERROR_NOT_PRESENT;
     }
- 
-    wait_us(80);
- 
+    // sensor should signal low 80us and then hi 80us
+    if (ERROR_NONE != stall(DHT_io, 0, 100)) {
+        return ERROR_SYNC_TIMEOUT;
+    }
+    if (ERROR_NONE != stall(DHT_io, 1, 100)) {
+        return ERROR_NO_PATIENCE;
+    }
+    // capture the data
     for (i = 0; i < 5; i++) {
         for (j = 0; j < 8; j++) {
- 
-            retryCount = 0;
-            do {
-                if (retryCount > 75)  {
-                    err = ERROR_DATA_TIMEOUT;
-                    return err;
-                }
-                retryCount++;
-                wait_us(1);
-            } while (DHT_io == 0);
+            if (ERROR_NONE != stall(DHT_io, 0, 75)) {
+                return ERROR_DATA_TIMEOUT;
+            }
+            // logic 0 is 28us max, 1 is 70us
             wait_us(40);
-            bitTimes[i*8+j]=DHT_io;
- 
-            int count = 0;
-            while (DHT_io == 1 && count < 100) {
-                wait_us(1);
-                count++;
+            bit_value[i*8+j] = DHT_io;
+            if (ERROR_NONE != stall(DHT_io, 1, 50)) {
+                return ERROR_DATA_TIMEOUT;
             }
         }
     }
-    DHT_io.output();
-    DHT_io = 1;
+    // store the data
     for (i = 0; i < 5; i++) {
         b=0;
         for (j=0; j<8; j++) {
-            if (bitTimes[i*8+j+1] > 0) {
-                b |= ( 1 << (7-j));
+            if (bit_value[i*8+j] == 1) {
+                b |= (1 << (7-j));
             }
         }
         DHT_data[i]=b;
     }
  
-    if (DHT_data[4] == ((DHT_data[0] + DHT_data[1] + DHT_data[2] + DHT_data[3]) & 0xFF)) {
+    // uncomment to see the checksum error if it exists
+    //printf(" 0x%02x + 0x%02x + 0x%02x + 0x%02x = 0x%02x \n", DHT_data[0], DHT_data[1], DHT_data[2], DHT_data[3], DHT_data[4]);
+    data_valid = DHT_data[0] + DHT_data[1] + DHT_data[2] + DHT_data[3];
+    if (DHT_data[4] == data_valid) {
         _lastReadTime = currentTime;
-        _lastTemperature=CalcTemperature();
-        _lastHumidity=CalcHumidity();
+        _lastTemperature = CalcTemperature();
+        _lastHumidity = CalcHumidity();
  
     } else {
         err = ERROR_CHECKSUM;
@@ -147,7 +133,8 @@ int DHT::readData() {
  
 }
  
-float DHT::CalcTemperature() {
+float DHT::CalcTemperature()
+{
     int v;
  
     switch (_DHTtype) {
@@ -166,45 +153,50 @@ float DHT::CalcTemperature() {
     return 0;
 }
  
-float DHT::ReadHumidity() {
+float DHT::ReadHumidity()
+{
     return _lastHumidity;
 }
  
-float DHT::ConvertCelciustoFarenheit(float celsius) {
+float DHT::ConvertCelciustoFarenheit(float const celsius)
+{
     return celsius * 9 / 5 + 32;
 }
  
-float DHT::ConvertCelciustoKelvin(float celsius) {
-    return celsius + 273.15;
+float DHT::ConvertCelciustoKelvin(float const celsius)
+{
+    return celsius + 273.15f;
 }
  
 // dewPoint function NOAA
 // reference: http://wahiduddin.net/calc/density_algorithms.htm
-float DHT::CalcdewPoint(float celsius, float humidity) {
-    float A0= 373.15/(273.15 + celsius);
+float DHT::CalcdewPoint(float const celsius, float const humidity)
+{
+    float A0= 373.15f/(273.15f + celsius);
     float SUM = -7.90298 * (A0-1);
-    SUM += 5.02808 * log10(A0);
-    SUM += -1.3816e-7 * (pow(10, (11.344*(1-1/A0)))-1) ;
+    SUM += 5.02808f * log10(A0);
+    SUM += -1.3816e-7 * (pow(10, (11.344f*(1-1/A0)))-1) ;
     SUM += 8.1328e-3 * (pow(10,(-3.49149*(A0-1)))-1) ;
     SUM += log10(1013.246);
     float VP = pow(10, SUM-3) * humidity;
-    float T = log(VP/0.61078);   // temp var
-    return (241.88 * T) / (17.558-T);
+    float T = log(VP/0.61078f);   // temp var
+    return (241.88f * T) / (17.558f-T);
 }
  
 // delta max = 0.6544 wrt dewPoint()
 // 5x faster than dewPoint()
 // reference: http://en.wikipedia.org/wiki/Dew_point
-float DHT::CalcdewPointFast(float celsius, float humidity)
+float DHT::CalcdewPointFast(float const celsius, float const humidity)
 {
-        float a = 17.271;
-        float b = 237.7;
-        float temp = (a * celsius) / (b + celsius) + log(humidity/100);
-        float Td = (b * temp) / (a - temp);
-        return Td;
+    float a = 17.271;
+    float b = 237.7;
+    float temp = (a * celsius) / (b + celsius) + log(humidity/100);
+    float Td = (b * temp) / (a - temp);
+    return Td;
 }
  
-float DHT::ReadTemperature(eScale Scale) {
+float DHT::ReadTemperature(eScale Scale)
+{
     if (Scale == FARENHEIT)
         return ConvertCelciustoFarenheit(_lastTemperature);
     else if (Scale == KELVIN)
@@ -213,7 +205,8 @@ float DHT::ReadTemperature(eScale Scale) {
         return _lastTemperature;
 }
  
-float DHT::CalcHumidity() {
+float DHT::CalcHumidity()
+{
     int v;
  
     switch (_DHTtype) {
@@ -229,4 +222,3 @@ float DHT::CalcHumidity() {
     }
     return 0;
 }
- 

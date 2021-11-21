@@ -21,6 +21,33 @@ Mutex lte_mutex;
 int lte_ping_id = -1;
 int lte_read_messages_id = -1;
 
+typedef struct {
+    const char *command;
+    const char *expected_response;
+    mbed::Callback<void(bool)> callback;
+} lte_send_message_t;
+
+Mail<lte_send_message_t, 16> lte_send_queue;
+Thread lte_send_thread;
+
+void lte_send_thread_handler() {
+    while (true) {
+        lte_send_message_t *msg = lte_send_queue.try_get();
+        if (msg != NULL) {
+            log_debug("got from queue: %s on ctx %p", msg->command, ThisThread::get_id());
+            lte_mutex.lock();
+            bool result = lte_parser->send(msg->command) && lte_parser->recv(msg->expected_response);
+
+            if (msg->callback) {
+                msg->callback(result);
+            }
+
+            lte_send_queue.free(msg);
+            lte_mutex.unlock();
+        }
+    }
+}
+
 void lte_init() {
     log_debug("initializing lte shield on cxt %p", ThisThread::get_id());
     lte_shield = new BufferedSerial(PA_9, PA_10, lte_desired_baud);   
@@ -35,6 +62,7 @@ void lte_init() {
     lte_power_pin = 1;
     lte_reset_pin = 1;
 
+    lte_send_thread.start(callback(lte_send_thread_handler));
     lte_thread.start(callback(&lte_queue, &EventQueue::dispatch_forever));
     lte_queue.call(lte_discover_baud_rate);
 }
@@ -351,16 +379,17 @@ bool lte_send(const char *command, const char *expected_response, mbed::Callback
         return false;
     }
 
-    return lte_queue.call(_send, command, expected_response, _cb);
+    lte_send_message_t *msg = lte_send_queue.try_alloc();
+    msg->callback = _cb;
+    msg->command = command;
+    msg->expected_response = expected_response;
+    bool result = lte_send_queue.put(msg) == 0;
+    log_debug("msg: %p, command: %s (%p)", &msg, command, &command);
+    return result;
 }
 
+
 bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb) {
-    if (lte_state != READY) {
-        log_debug("publish failed, lte_state (%d) not ready", lte_state);
-        return false;
-    }
-
     std::string command = "AT+UMQTTC=2,0,0,\"" + std::string(topic) + "\",\"" + std::string(value) + "\"";
-
-    return lte_queue.call(_send, command.c_str(), "+UMQTTC: 2,1", _cb) > 0;
+    return lte_send(command.c_str(), "+UMQTTC: 2,1", _cb);
 }
