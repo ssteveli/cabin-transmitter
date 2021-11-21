@@ -3,6 +3,7 @@
 #include "lte.h"
 #include <inttypes.h>
 #include "events.h"
+#include "log.h"
 
 #define MAX_THREAD_INFO 10
 #define SAMPLE_TIME_MS   2000
@@ -22,11 +23,13 @@ uint64_t prev_idle_time = 0;
 
 void os_reporting_worker() {
     while (true) {
+        log_debug("os stats waiting for ready flag");
         event_flags.wait_any(FLAG_SYSTEM_READY);
-        
+
         mbed_stats_sys_t sys_stats;
         mbed_stats_sys_get(&sys_stats);
 
+        log_debug("reporting os information");
         lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
     }
 }
@@ -35,9 +38,9 @@ void system_read_data() {
     // heap
     mbed_stats_heap_get(&heap_info);
 
-    lte_publish("cabin/system/heap/current_size", "%lb", NULL, TIMEOUT, heap_info.current_size);
-    lte_publish("cabin/system/heap/max_size", "%lb", NULL, TIMEOUT, heap_info.max_size);
-    lte_publish("cabin/system/heap/total_size", "%lb", NULL, TIMEOUT, heap_info.total_size);
+    lte_publish("cabin/system/heap/current_size", "%ld", NULL, TIMEOUT, heap_info.current_size);
+    lte_publish("cabin/system/heap/max_size", "%ld", NULL, TIMEOUT, heap_info.max_size);
+    lte_publish("cabin/system/heap/total_size", "%ld", NULL, TIMEOUT, heap_info.total_size);
 
     // CPU
     mbed_stats_cpu_get(&stats);
@@ -46,9 +49,9 @@ void system_read_data() {
     uint8_t usage = 100 - ((diff_usec * 100) / (SAMPLE_TIME_MS*1000));
     prev_idle_time = stats.idle_time;
 
-    lte_publish("cabin/system/cpu/uptime", "%llb", NULL, TIMEOUT, stats.uptime);
-    lte_publish("cabin/system/cpu/idle_time", "%llb", NULL, TIMEOUT, stats.idle_time);
-    lte_publish("cabin/system/cpu/sleep_time", "%llb", NULL, TIMEOUT, stats.sleep_time);
+    lte_publish("cabin/system/cpu/uptime", "%ld", NULL, TIMEOUT, stats.uptime);
+    lte_publish("cabin/system/cpu/idle_time", "%ld", NULL, TIMEOUT, stats.idle_time);
+    lte_publish("cabin/system/cpu/sleep_time", "%ld", NULL, TIMEOUT, stats.sleep_time);
     lte_publish("cabin/system/cpu/idle", "%d%%", NULL, TIMEOUT, idle);
     lte_publish("cabin/system/cpu/up", "%d%%", NULL, TIMEOUT, usage);
 }

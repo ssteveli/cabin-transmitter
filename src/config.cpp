@@ -16,7 +16,7 @@ const char *config_kv_enabled = "/kv/enabled";
 const char *config_kv_mqtt_hostname = "/kv/mqtt-hostname";
 static char config_mqtt_hostname[128] = {0};
 
-const char* get_config_mqttt_hostname() {
+const char* get_config_mqtt_hostname() {
     return config_mqtt_hostname;
 }
 

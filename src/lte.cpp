@@ -382,7 +382,7 @@ void lte_mqtt_login() {
     if (lte_parser->send("AT+UMQTTC=0") && lte_parser->recv("OK") && // mqtt logout
         lte_parser->send("AT+UMQTT=12,1") && lte_parser->recv("OK") && // mqtt clear session
         lte_parser->send("AT+UMQTT=0,\"cabin\"") && lte_parser->recv("+UMQTT: 0,1") && // set mqtt client id
-        lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqttt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
+        lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
         lte_parser->send("AT+UMQTT=10,30") && lte_parser->recv("+UMQTT: 10,1") && // set mqtt inactivity timeout
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
         lte_parser->send("AT+UMQTTWMSG=\"off\"") && lte_parser->recv("OK") && // mqtt last will message
@@ -448,6 +448,7 @@ bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)
     va_end(vl);
 
     std::string command = "AT+UMQTTC=2,0,0,\"" + std::string(topic) + "\",\"" + std::string(lte_publish_mqtt_value_buffer) + "\"";
+
     memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
     return lte_send(command.c_str(), "+UMQTTC: 2,1", _cb), timeout;
 }
