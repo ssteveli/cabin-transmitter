@@ -379,7 +379,7 @@ bool lte_send(const char *command, const char *expected_response, mbed::Callback
         return false;
     }
 
-    lte_send_message_t *msg = lte_send_queue.try_alloc();
+    lte_send_message_t *msg = lte_send_queue.try_calloc();
     msg->callback = _cb;
     msg->command = command;
     msg->expected_response = expected_response;

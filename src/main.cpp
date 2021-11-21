@@ -4,6 +4,7 @@
 #include "log.h"
 #include "config.h"
 #include "environment.h"
+#include "rtc.h"
 
 static void main_init();
 
@@ -22,6 +23,7 @@ int main() {
 static void main_init() {
     log_init();
     config_init();
+    rtc_start();
     main_event_handler_init();
     lte_init();
     environment_init();
