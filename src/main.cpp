@@ -16,6 +16,14 @@ void handle(bool result) {
 int main() {
     main_init();
 
+    rtc_time_t t;
+    if (rtc_read_time(&t) == 0) {
+        log_debug("time: %d/%d/%d %d:%d:%d", t.month, t.day, t.year, t.hours, t.minute, t.second);
+    } else {
+        log_debug("rtc failed");
+    }
+
+
     log_debug("starting main loop on ctx %p", ThisThread::get_id());
     while(1) {
     }

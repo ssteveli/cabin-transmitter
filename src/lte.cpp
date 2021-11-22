@@ -103,6 +103,14 @@ void lte_send_thread_handler() {
 }
 
 void lte_init() {
+    if (lte_shield != NULL) {
+        delete lte_shield;
+    }
+
+    if (lte_parser != NULL) {
+        delete lte_parser;
+    }
+
     log_debug("initializing lte shield on cxt %p", ThisThread::get_id());
     lte_shield = new BufferedSerial(PA_9, PA_10, lte_desired_baud);   
     lte_shield->set_flow_control(BufferedSerial::Flow::Disabled); 

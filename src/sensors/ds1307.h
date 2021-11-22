@@ -25,7 +25,7 @@
  
 #include "mbed.h"
  
-#define DS1307_addr 0xD0    // this is fixed by Dallas
+#define DS1307_addr 0x68    // this is fixed by Dallas
 #define DS1307_freq 100000  // this is the Dallas spec for operating i2c for this device
 #define DS1307_sec 0x00     // seconds
 #define DS1307_min  0x01    // min
