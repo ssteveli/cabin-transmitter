@@ -9,6 +9,8 @@
 
 static void main_init();
 
+I2C i2c(I2C_SDA, I2C_SCL);
+
 void handle(bool result) {
     log_debug("result: %d on ctx %p", result, ThisThread::get_id());
 }
@@ -18,7 +20,9 @@ int main() {
 
     rtc_time_t t;
     if (rtc_read_time(&t) == 0) {
-        log_debug("time: %d/%d/%d %d:%d:%d", t.month, t.day, t.year, t.hours, t.minute, t.second);
+        log_debug("############################################################");
+        log_debug("time: %02d/%02d/%d %02d:%02d:%02d", t.month, t.date, t.year, t.hours, t.minute, t.second);
+        log_debug("############################################################");
     } else {
         log_debug("rtc failed");
     }

@@ -1,8 +1,7 @@
 #include "rtc.h"
 #include "sensors/ds1307.h"
-#include "mbed.h"
 
-DS1307 ds1307(D14, D15);
+DS1307 ds1307(I2C_SDA, I2C_SCL);
 
 void rtc_start() {
 
@@ -11,13 +10,13 @@ void rtc_start() {
 int rtc_read_time(rtc_time_t *t) {
     if (t == NULL) return -1;
 
-    int second;
-    int minute;
-    int hours;
-    int day;
-    int date;
-    int month;
-    int year;
+    uint8_t second;
+    uint8_t minute;
+    uint8_t hours;
+    uint8_t day;
+    uint8_t date;
+    uint8_t month;
+    uint16_t year;
 
     int result = ds1307.gettime(
         &second,
