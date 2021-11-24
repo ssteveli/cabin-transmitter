@@ -162,7 +162,7 @@ void lte_discover_baud_rate() {
             lte_shield->set_baud(LTE_SHIELD_SUPPORTED_BAUD[i]);
             if (lte_parser->send("AT+IPR=%d", lte_desired_baud)) {
                 lte_shield->set_baud(lte_desired_baud);
-                wait_us(200000);
+                ThisThread::sleep_for(200ms);
 
                 lte_parser->flush();
                 if (lte_parser->send("ATE0") && lte_parser->recv("OK")) {
@@ -246,7 +246,7 @@ void lte_operator_registration() {
             }
         }
 
-        wait_us(10000000);
+        ThisThread::sleep_for(10s);
     }
 
     if (registered) {
@@ -401,7 +401,7 @@ void lte_mqtt_login() {
         lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") && // mqtt login
         lte_parser->send("AT+UMQTTC=2,0,0,\"cabin/status\",\"on\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
     ) {
-        wait_us(2000000);
+        ThisThread::sleep_for(2s);
 
         // handle being logged out (i.e. lost the server)
         lte_parser->oob("+UUMQTTC: 1,3", lte_mqtt_login);
@@ -420,7 +420,7 @@ void lte_mqtt_login() {
         event_flags.set(FLAG_SYSTEM_READY);
     } else {
         // sleep for a bit
-        wait_us(30000000);
+        ThisThread::sleep_for(3s);
         lte_queue.call(lte_operator_registration);
     }
 

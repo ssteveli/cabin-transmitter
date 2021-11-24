@@ -6,6 +6,7 @@
 #include "environment.h"
 #include "rtc.h"
 #include "system.h"
+#include "cli.h"
 
 static void main_init();
 
@@ -34,6 +35,7 @@ int main() {
 }
 
 static void main_init() {
+    cli_init();
     log_init();
     config_init();
     rtc_start();
