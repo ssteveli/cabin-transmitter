@@ -2,7 +2,11 @@
 #include "mbed.h"
 #include "rtc.h"
 
-BufferedSerial pc(USBTX, USBRX);
+static BufferedSerial pc(USBTX, USBRX, 115200);
+EventQueue cli_queue(32 * EVENTS_EVENT_SIZE);
+Thread cli_thread;
+
+int fuck = 0;
 
 void cli_time() {
     rtc_time_t t;
@@ -44,9 +48,15 @@ void cli_handle() {
     }
 }
 
-void cli_init() {
-    printf("\n\nCLI Ready (h for help)\n\n");
+void cli_sigio_handler() {
+    cli_queue.call(cli_handle);
+}
 
+void cli_init() {
     pc.set_blocking(false);
-    pc.sigio(mbed_event_queue()->event(cli_handle));
+    pc.sigio(callback(cli_sigio_handler));
+    cli_thread.start(callback(&cli_queue, &EventQueue::dispatch_forever));
+    const char *msg = "\n\nCLI Ready (h for help)\n\n";
+    pc.write(msg, sizeof(msg));
+    pc.sync();
 }
