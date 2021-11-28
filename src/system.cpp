@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include "events.h"
 #include "log.h"
+#include "rtc.h"
 
 #define MAX_THREAD_INFO 10
 #define SAMPLE_TIME_MS   2000
@@ -36,10 +37,11 @@ void os_reporting_worker() {
 void system_read_data() {
     // heap
     mbed_stats_heap_get(&heap_info);
+    time_t t = rtc_read_time();
 
-    lte_publish("cabin/system/heap/current_size", "%ld", NULL, TIMEOUT, heap_info.current_size);
-    lte_publish("cabin/system/heap/max_size", "%ld", NULL, TIMEOUT, heap_info.max_size);
-    lte_publish("cabin/system/heap/total_size", "%ld", NULL, TIMEOUT, heap_info.total_size);
+    lte_publish("cabin/system/heap/current_size", "%ld,%ld", NULL, TIMEOUT, t, heap_info.current_size);
+    lte_publish("cabin/system/heap/max_size", "%ld,%ld", NULL, TIMEOUT, t, heap_info.max_size);
+    lte_publish("cabin/system/heap/total_size", "%ld,%ld", NULL, TIMEOUT, t, heap_info.total_size);
 
     // CPU
     mbed_stats_cpu_get(&stats);
@@ -48,11 +50,11 @@ void system_read_data() {
     uint8_t usage = 100 - ((diff_usec * 100) / (SAMPLE_TIME_MS*1000));
     prev_idle_time = stats.idle_time;
 
-    lte_publish("cabin/system/cpu/uptime", "%ld", NULL, TIMEOUT, stats.uptime);
-    lte_publish("cabin/system/cpu/idle_time", "%ld", NULL, TIMEOUT, stats.idle_time);
-    lte_publish("cabin/system/cpu/sleep_time", "%ld", NULL, TIMEOUT, stats.sleep_time);
-    lte_publish("cabin/system/cpu/idle", "%d%%", NULL, TIMEOUT, idle);
-    lte_publish("cabin/system/cpu/up", "%d%%", NULL, TIMEOUT, usage);
+    lte_publish("cabin/system/cpu/uptime", "%ld,%ld", NULL, TIMEOUT, t, stats.uptime);
+    lte_publish("cabin/system/cpu/idle_time", "%ld,%ld", NULL, TIMEOUT, t, stats.idle_time);
+    lte_publish("cabin/system/cpu/sleep_time", "%ld,%ld", NULL, TIMEOUT, t, stats.sleep_time);
+    lte_publish("cabin/system/cpu/idle", "%ld,%d%%", NULL, TIMEOUT, t, idle);
+    lte_publish("cabin/system/cpu/up", "%ld,%d%%", NULL, TIMEOUT, t, usage);
 }
 
 void system_init() {
