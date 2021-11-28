@@ -1,7 +1,8 @@
 #include "rtc.h"
 #include "sensors/ds1307.h"
+#include "config.h"
 
-DS1307 ds1307(I2C_SDA, I2C_SCL);
+DS1307 ds1307(CB_I2C_SDA, CB_I2C_SCL);
 
 void rtc_start() {
 

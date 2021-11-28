@@ -6,6 +6,8 @@
 #define LTE_PWR D5
 #define LTE_RST D6
 #define DHT22_OUT D4
+#define CB_I2C_SDA PB_9
+#define CB_I2C_SCL PB_8
 
 void config_init();
 const char* get_config_mqtt_hostname();
