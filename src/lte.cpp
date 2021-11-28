@@ -5,8 +5,8 @@
 
 using namespace std::chrono_literals;
 
-DigitalOut lte_power_pin(D5);
-DigitalOut lte_reset_pin(D6);
+DigitalOut lte_power_pin(LTE_PWR);
+DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
 
 const int lte_desired_baud = 9600;
@@ -112,7 +112,7 @@ void lte_init() {
     }
 
     log_debug("initializing lte shield on cxt %p", ThisThread::get_id());
-    lte_shield = new BufferedSerial(PA_9, PA_10, lte_desired_baud);   
+    lte_shield = new BufferedSerial(LTE_TX, LTE_RX, lte_desired_baud);   
     lte_shield->set_flow_control(BufferedSerial::Flow::Disabled); 
     lte_shield->set_format(8, BufferedSerial::Parity::None, 1);
 

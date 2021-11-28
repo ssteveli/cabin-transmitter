@@ -3,10 +3,11 @@
 #include "mbed.h"
 #include "log.h"
 #include "sensors/DHT.h"
+#include "config.h"
 
 using namespace std::chrono_literals;
 
-DHT sensor(D4, DHT22);
+DHT sensor(DHT22_OUT, DHT22);
 EventQueue environment_queue(32 * EVENTS_EVENT_SIZE);
 Thread environment_thread;
 

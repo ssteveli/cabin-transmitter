@@ -9,8 +9,6 @@
 
 static void main_init();
 
-I2C i2c(I2C_SDA, I2C_SCL);
-
 void handle(bool result) {
     log_debug("result: %d on ctx %p", result, ThisThread::get_id());
 }
