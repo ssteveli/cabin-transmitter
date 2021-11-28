@@ -74,6 +74,7 @@ time_t rtc_make_time(const rtc_time_t *tm){
   seconds+= tm->hours * SECS_PER_HOUR;
   seconds+= tm->minute * SECS_PER_MIN;
   seconds+= tm->second;
+
   return (time_t)seconds; 
 }
 
