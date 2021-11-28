@@ -340,7 +340,6 @@ void lte_issue_read_messages_request() {
             }
 
             if (found) {
-                log_debug("buf: %s", buffer);
                 int mqtt_result;
                 if (sscanf(buffer, "+UMQTTC: 6,%d", &mqtt_result) == 1) {
                     switch (mqtt_result) {

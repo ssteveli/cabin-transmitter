@@ -4,6 +4,7 @@
 #include "log.h"
 #include "sensors/DHT.h"
 #include "config.h"
+#include "rtc.h"
 
 using namespace std::chrono_literals;
 
@@ -13,10 +14,11 @@ Thread environment_thread;
 
 void environment_read_data() {
     int result = sensor.readData();
+    time_t t = rtc_read_time();
 
     if (result == 0) {
-        lte_publish("cabin/env/temp", "%0.1f", NULL, TIMEOUT, sensor.ReadTemperature(FARENHEIT));
-        lte_publish("cabin/env/humidity", "%0.1f", NULL, TIMEOUT, sensor.ReadHumidity());
+        lte_publish("cabin/env/temp", "%ld,%0.1f", NULL, TIMEOUT, t, sensor.ReadTemperature(FARENHEIT));
+        lte_publish("cabin/env/humidity", "%ld,%0.1f", NULL, TIMEOUT, t, sensor.ReadHumidity());
     } else {
         log_debug("dhr error: %i", result);
     }

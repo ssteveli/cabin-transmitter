@@ -1,5 +1,7 @@
 #include "ds1307.h"
- 
+
+#define  y2kYearToTm(Y)      ((Y) + 30)
+
 DS1307::DS1307(PinName sda, PinName scl, int address) : m_address(address), ds1307i2c(sda, scl) {
     ds1307i2c.frequency(DS1307_freq);
 }
@@ -23,7 +25,7 @@ int DS1307::gettime(uint8_t *sec, uint8_t *min, uint8_t *hour, uint8_t *day, uin
     *day = bcdtodec(buffer[3]);
     *date = bcdtodec(buffer[4]);
     *month = bcdtodec(buffer[5]);
-    *year = bcdtodec(buffer[6]) + 2000;
+    *year = y2kYearToTm(bcdtodec(buffer[6]));
 
     return 0;
 }
