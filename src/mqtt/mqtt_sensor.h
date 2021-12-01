@@ -5,11 +5,15 @@
 
 namespace mqtt {
 
-class MQTTSensor : MQTTComponent {
+class MQTTSensor : public MQTTComponent {
 public:
-    MQTTSensor(const char* friendly_name, const char* icon, const char* state_topic);    
+    MQTTSensor(const char* friendly_name, const char* icon, const char* state_topic);
+    ~MQTTSensor();
+
     bool send_discovery() override;
-    bool publish_state() override;
+
+protected:
+    const char* unique_id() override;
 };
 
 }

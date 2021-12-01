@@ -3,15 +3,16 @@
 
 namespace mqtt {
 
-
 class MQTTComponent {
 public:
     MQTTComponent(const char* friendly_name, const char* icon, const char* state_topic);
-    virtual bool send_discovery();
-    virtual bool publish_state();
+    virtual ~MQTTComponent();
+
+    virtual bool send_discovery() = 0;
+    bool publish_state(const char* format, ...);
 
 protected:
-    virtual char* unique_id();
+    virtual const char* unique_id() = 0;
     
     const char* friendly_name() {
         return m_friendly_name;
@@ -32,4 +33,5 @@ private:
 };
 
 }
+
 #endif
