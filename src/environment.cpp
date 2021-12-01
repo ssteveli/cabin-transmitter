@@ -5,12 +5,16 @@
 #include "sensors/DHT.h"
 #include "config.h"
 #include "rtc.h"
+#include "mqtt/mqtt_sensor.h"
 
 using namespace std::chrono_literals;
 
 DHT sensor(DHT22_OUT, DHT22);
 EventQueue environment_queue(32 * EVENTS_EVENT_SIZE);
 Thread environment_thread;
+
+mqtt::MQTTSensor temp("cabin temperature", "hass:thermometer", "cabin/env/temp/state");
+mqtt::MQTTSensor humidity("cabin humidity", "hass:water-percent", "cabin/env/humidity/state");
 
 void environment_read_data() {
     int result = sensor.readData();
