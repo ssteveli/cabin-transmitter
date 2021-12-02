@@ -14,6 +14,7 @@ public:
 
 protected:
     const char* unique_id() override;
+    const char* component_type() override;
 };
 
 }

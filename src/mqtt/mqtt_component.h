@@ -13,6 +13,7 @@ public:
 
 protected:
     virtual const char* unique_id() = 0;
+    virtual const char* component_type() = 0;
     
     const char* friendly_name() {
         return m_friendly_name;

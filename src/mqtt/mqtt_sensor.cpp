@@ -15,4 +15,8 @@ const char* MQTTSensor::unique_id() {
     return "TBD";
 }
 
+const char* MQTTSensor::component_type(){
+    return "sensor";
+}
+
 }
