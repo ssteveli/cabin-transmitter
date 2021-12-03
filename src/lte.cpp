@@ -396,9 +396,9 @@ void lte_mqtt_login() {
         lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
         lte_parser->send("AT+UMQTT=10,30") && lte_parser->recv("+UMQTT: 10,1") && // set mqtt inactivity timeout
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
-        lte_parser->send("AT+UMQTTWMSG=\"off\"") && lte_parser->recv("OK") && // mqtt last will message
+        lte_parser->send("AT+UMQTTWMSG=\"offline\"") && lte_parser->recv("OK") && // mqtt last will message
         lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") && // mqtt login
-        lte_parser->send("AT+UMQTTC=2,0,0,\"cabin/status\",\"on\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
+        lte_parser->send("AT+UMQTTC=2,0,0,\"cabin/status\",\"online\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
     ) {
         ThisThread::sleep_for(2s);
 

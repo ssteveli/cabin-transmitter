@@ -9,6 +9,8 @@
 #define CB_I2C_SDA PB_9
 #define CB_I2C_SCL PB_8
 
+#define BE_LIKE_ESPHOME
+
 void config_init();
 const char* get_config_mqtt_hostname();
 

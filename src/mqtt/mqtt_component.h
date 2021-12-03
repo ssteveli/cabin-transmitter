@@ -1,6 +1,8 @@
 #ifndef SRC_MQTT_COMPONENT_
 #define SRC_MQTT_COMPONENT_
 
+#include "mbed.h"
+
 namespace mqtt {
 
 class MQTTComponent {
@@ -10,6 +12,9 @@ public:
 
     virtual bool send_discovery() = 0;
     bool publish_state(const char* format, ...);
+    bool publish_state(const char* format, mbed::Callback<void(bool)> _cb, ...);
+    void set_timeout(int timeout) { m_timeout = timeout; }
+    int get_timeout(int timeout) { return m_timeout; }
 
 protected:
     virtual const char* unique_id() = 0;
@@ -31,6 +36,7 @@ private:
     const char* m_friendly_name;
     const char* m_icon;
     const char* m_state_topic;
+    int m_timeout = 1000;
 };
 
 }

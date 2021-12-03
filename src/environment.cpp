@@ -13,16 +13,23 @@ DHT sensor(DHT22_OUT, DHT22);
 EventQueue environment_queue(32 * EVENTS_EVENT_SIZE);
 Thread environment_thread;
 
+#ifdef BE_LIKE_ESPHOME
 mqtt::MQTTSensor temp("cabin temperature", "hass:thermometer", "cabin/env/temp/state");
 mqtt::MQTTSensor humidity("cabin humidity", "hass:water-percent", "cabin/env/humidity/state");
+#endif
 
 void environment_read_data() {
     int result = sensor.readData();
-    time_t t = rtc_read_time();
 
     if (result == 0) {
+        #ifdef BE_LIKE_ESPHOME
+        temp.publish_state("%0.1f", sensor.ReadTemperature(FARENHEIT));
+        humidity.publish_state("%0.1f", sensor.ReadHumidity());
+        #else
+        time_t t = rtc_read_time();
         lte_publish("cabin/env/temp", "%ld,%0.1f", NULL, TIMEOUT, t, sensor.ReadTemperature(FARENHEIT));
         lte_publish("cabin/env/humidity", "%ld,%0.1f", NULL, TIMEOUT, t, sensor.ReadHumidity());
+        #endif
     } else {
         log_debug("dhr error: %i", result);
     }
