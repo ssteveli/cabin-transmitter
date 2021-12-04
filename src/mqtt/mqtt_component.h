@@ -25,7 +25,7 @@ public:
 protected:
     virtual const char* unique_id() = 0;
     virtual const char* component_type() = 0;
-    virtual void set_discovery(JsonObject& root) = 0;
+    virtual void set_discovery(DynamicJsonDocument& root) = 0;
     
     const char* friendly_name() {
         return m_friendly_name;

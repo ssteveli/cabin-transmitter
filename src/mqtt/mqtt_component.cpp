@@ -29,6 +29,7 @@ bool MQTTComponent::send_discovery() {
     root["state_topic"] = m_state_topic;
     root["icon"] = m_icon;
     root["unique_id"] = unique_id();
+    set_discovery(root);
 
     std::string buf = "";
     serializeJson(root, buf);

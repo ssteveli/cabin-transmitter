@@ -24,7 +24,7 @@ void environment_read_data() {
 
     if (result == 0) {
         #ifdef BE_LIKE_ESPHOME
-        temp.publish_state("%0.1f", sensor.ReadTemperature(CELCIUS));
+        temp.publish_state("%0.1f", sensor.ReadTemperature(FARENHEIT));
         humidity.publish_state("%0.1f", sensor.ReadHumidity());
         #else
         time_t t = rtc_read_time();
@@ -39,7 +39,7 @@ void environment_read_data() {
 void environment_init() {
     #ifdef BE_LIKE_ESPHOME
     temp.set_retain(true);
-    temp.set_unit_of_measurement("°C");
+    temp.set_unit_of_measurement("F");
     humidity.set_retain(true);
     humidity.set_unit_of_measurement("%");
 

@@ -15,7 +15,7 @@ const char* MQTTSensor::component_type(){
     return "sensor";
 }
 
-void MQTTSensor::set_discovery(JsonObject& root) {
+void MQTTSensor::set_discovery(DynamicJsonDocument& root) {
     if (!m_unit_of_measurement.empty()) {
         root["unit_of_measurement"] = m_unit_of_measurement;
     }
