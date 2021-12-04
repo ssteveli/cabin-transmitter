@@ -153,7 +153,7 @@ void lte_discover_baud_rate() {
     lte_mutex.lock();
 
     lte_state = BAUD_SELECTION;
-    event_flags.clear(FLAG_SYSTEM_READY);
+    events_clear(FLAG_SYSTEM_READY);
 
     bool success = false;
     bool pwr = true;
@@ -200,7 +200,7 @@ void lte_operator_registration() {
     lte_mutex.lock();
 
     lte_state = OPERATOR_REGISTRATION;
-    event_flags.clear(FLAG_SYSTEM_READY);
+    events_clear(FLAG_SYSTEM_READY);
 
     log_debug("operator registration staring on cxt %p", ThisThread::get_id());
     lte_parser->set_timeout(5000);
@@ -385,8 +385,8 @@ void lte_mqtt_login() {
     lte_mutex.lock();
 
     lte_state = MQTT_LOGIN;
-    event_flags.clear(FLAG_SYSTEM_READY);
-    
+    events_clear(FLAG_SYSTEM_READY);
+
     log_debug("mqtt login on cxt %p", ThisThread::get_id());
 
     lte_parser->set_timeout(60000);
@@ -398,7 +398,7 @@ void lte_mqtt_login() {
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
         lte_parser->send("AT+UMQTTWMSG=\"offline\"") && lte_parser->recv("OK") && // mqtt last will message
         lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") && // mqtt login
-        lte_parser->send("AT+UMQTTC=2,0,0,\"cabin/status\",\"online\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
+        lte_parser->send("AT+UMQTTC=2,0,1,\"cabin/status\",\"online\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
     ) {
         ThisThread::sleep_for(2s);
 
@@ -416,7 +416,7 @@ void lte_mqtt_login() {
 
         log_debug("mqtt setup completed, we're ready to go on cxt %p", ThisThread::get_id());
         lte_state = READY;
-        event_flags.set(FLAG_SYSTEM_READY);
+        events_set(FLAG_SYSTEM_READY);
     } else {
         // sleep for a bit
         ThisThread::sleep_for(3s);
@@ -452,14 +452,21 @@ bool lte_send(const char *command, const char *expected_response, mbed::Callback
     return result;
 }
 
-bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, ...) {
+bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, ...) {
     va_list vl;
-    va_start(vl, timeout);
-    vsprintf(lte_publish_mqtt_value_buffer, value, vl);
+    va_start(vl, retain);
+    bool result = lte_vpublish(topic, value, _cb, timeout, retain, vl);
     va_end(vl);
 
-    std::string command = "AT+UMQTTC=2,0,0,\"" + std::string(topic) + "\",\"" + std::string(lte_publish_mqtt_value_buffer) + "\"";
+    return result;
+}
 
+bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, va_list args) {
     memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
-    return lte_send(command.c_str(), "+UMQTTC: 2,1", _cb), timeout;
+    vsprintf(lte_publish_mqtt_value_buffer, value, args);
+
+    char command[128];
+    sprintf(command, "AT+UMQTTC=2,0,%d,\"%s\",\"%s\"", retain, topic, lte_publish_mqtt_value_buffer);
+
+    return lte_send(command, "+UMQTTC: 2,1", _cb), timeout;
 }

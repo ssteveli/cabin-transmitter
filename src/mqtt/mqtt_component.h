@@ -11,10 +11,15 @@ public:
     virtual ~MQTTComponent();
 
     virtual bool send_discovery() = 0;
+    bool vpublish_state(const char* format, va_list args);
     bool publish_state(const char* format, ...);
+    bool vpublish_state(const char* format, mbed::Callback<void(bool)> _cb, va_list args);
     bool publish_state(const char* format, mbed::Callback<void(bool)> _cb, ...);
     void set_timeout(int timeout) { m_timeout = timeout; }
     int get_timeout(int timeout) { return m_timeout; }
+    void set_retain(bool retain) { m_retain = retain; }
+    bool is_retrain() { return m_retain; }
+    const char* get_friendly_name() { return m_friendly_name; }
 
 protected:
     virtual const char* unique_id() = 0;
@@ -37,6 +42,7 @@ private:
     const char* m_icon;
     const char* m_state_topic;
     int m_timeout = 1000;
+    bool m_retain = true;
 };
 
 }

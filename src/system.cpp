@@ -39,16 +39,17 @@ mqtt::MQTTSensor cpu_up("cabin cpu uptime", "hass:account", "cabin/system/cpu/up
 #endif
 
 void os_reporting_worker() {
+    uint32_t flags_read = 0;
     while (true) {
         log_debug("os stats waiting for ready flag");
-        event_flags.wait_any(FLAG_SYSTEM_READY);
-        log_debug("reporting os information");
+        flags_read = events_wait_any(FLAG_SYSTEM_READY);
+        log_debug("reporting os information, flags: 0x%08lx", flags_read);
 
         mbed_stats_sys_t sys_stats;
         mbed_stats_sys_get(&sys_stats);
 
         #ifdef BE_LIKE_ESPHOME
-        os_version.publish_state("%" PRId32 "", sys_stats.os_version);
+        os_version.publish_state("%" PRId32 "", NULL, sys_stats.os_version);
         #else
         lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
         #endif
@@ -82,8 +83,8 @@ void system_read_data() {
     cpu_uptime.publish_state("%ld", stats.uptime);
     cpu_idle_time.publish_state("%ld", stats.idle_time);
     cpu_sleep_time.publish_state("%ld", stats.sleep_time);
-    cpu_idle.publish_state("%ld", idle);
-    cpu_up.publish_state("%ld", usage);
+    cpu_idle.publish_state("%d%%", idle);
+    cpu_up.publish_state("%d%%", usage);
     #else
     time_t t = rtc_read_time();
 
@@ -98,5 +99,6 @@ void system_read_data() {
 void system_init() {
     system_thread.start(callback(&system_queue, &EventQueue::dispatch_forever));
     system_queue.call_every(320s, system_read_data);
-    system_os_reporting_thread.start(os_reporting_worker);
+
+    system_os_reporting_thread.start(callback(os_reporting_worker));
 }

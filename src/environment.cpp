@@ -36,6 +36,11 @@ void environment_read_data() {
 }
 
 void environment_init() {
+    #ifdef BE_LIKE_ESPHOME
+    temp.set_retain(true);
+    humidity.set_retain(true);
+    #endif
+    
     environment_thread.start(callback(&environment_queue, &EventQueue::dispatch_forever));
     environment_thread.set_priority(osPriorityHigh);
     environment_queue.call_every(120s, environment_read_data);

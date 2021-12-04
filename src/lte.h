@@ -45,7 +45,8 @@ void lte_discover_baud_rate();
 void lte_operator_registration();
 void lte_mqtt_login();
 void lte_init();
-bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout = TIMEOUT, ...);
+bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, ...);
+bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, va_list args);
 bool lte_send(const char *command, const char *expected_result, mbed::Callback<void(bool)> _cb = NULL, int timeout = TIMEOUT);
 
 #endif

@@ -2,6 +2,7 @@
 #include "mbed.h"
 #include "lte.h"
 #include "ArduinoJson.h"
+#include "log.h"
 
 namespace mqtt {
 
@@ -37,10 +38,18 @@ bool MQTTComponent::publish_state(const char* format, ...) {
 bool MQTTComponent::publish_state(const char* format, mbed::Callback<void(bool)> _cb, ...) {
     va_list vl;
     va_start(vl, _cb);
-    bool result = lte_publish(m_state_topic, format, _cb, m_timeout, vl);
+    bool result = lte_vpublish(m_state_topic, format, _cb, m_timeout, m_retain, vl);
     va_end(vl);
-
+    
     return result;
 }
 
+bool MQTTComponent::vpublish_state(const char* format, va_list args) {
+    return vpublish_state(format, NULL, args);
 }
+
+bool MQTTComponent::vpublish_state(const char* format, mbed::Callback<void(bool)> _cb, va_list args) {
+    return lte_vpublish(m_state_topic, format, _cb, m_timeout, m_retain, args);
+}
+
+} // end namespace
