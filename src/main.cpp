@@ -6,6 +6,7 @@
 #include "environment.h"
 #include "rtc.h"
 #include "system.h"
+#include "mqtt/mqtt_component_discovery.h"
 
 static void main_init();
 
@@ -35,6 +36,7 @@ static void main_init() {
     log_init();
     config_init();
     rtc_start();
+    mqtt::mqtt_component_discovery_init();
     main_event_handler_init();
     lte_init();
     system_init();

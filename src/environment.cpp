@@ -6,6 +6,7 @@
 #include "config.h"
 #include "rtc.h"
 #include "mqtt/mqtt_sensor.h"
+#include "mqtt/mqtt_component_discovery.h"
 
 using namespace std::chrono_literals;
 
@@ -39,6 +40,9 @@ void environment_init() {
     #ifdef BE_LIKE_ESPHOME
     temp.set_retain(true);
     humidity.set_retain(true);
+
+    mqtt::mqtt_register_component(&temp);
+    mqtt::mqtt_register_component(&humidity);
     #endif
     
     environment_thread.start(callback(&environment_queue, &EventQueue::dispatch_forever));
