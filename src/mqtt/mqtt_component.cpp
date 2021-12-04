@@ -13,6 +13,14 @@ MQTTComponent::MQTTComponent(const char* friendly_name, const char* icon, const 
 
 MQTTComponent::~MQTTComponent() {}
 
+void find_and_replace(std::string &data, std::string to_search, std::string replace_with) {
+    size_t pos = data.find(to_search);
+    while (pos != std::string::npos) {
+        data.replace(pos, to_search.size(), replace_with);
+        pos = data.find(to_search, pos + replace_with.size());
+    }
+}
+
 bool MQTTComponent::send_discovery() {
     std::string discovery_topic = "homeassistant/" + std::string(this->component_type()) + "/cabin/" + this->m_friendly_name + "/config";
     
@@ -20,9 +28,17 @@ bool MQTTComponent::send_discovery() {
     root["name"] = m_friendly_name;
     root["state_topic"] = m_state_topic;
     root["icon"] = m_icon;
+    root["unique_id"] = unique_id();
 
-    char buf[1024];
+    std::string buf = "";
     serializeJson(root, buf);
+    
+    // escape quotes in prep for using json in an mqtt value
+    find_and_replace(buf, "\"", "\\\"");
+    log_debug("discovery json: %s", buf.c_str());
+   
+    lte_publish(discovery_topic.c_str(), buf.c_str(), NULL, 5000, true);
+
     return true;
 }
 

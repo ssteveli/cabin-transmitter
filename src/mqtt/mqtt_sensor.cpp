@@ -7,16 +7,18 @@ MQTTSensor::MQTTSensor(const char* friendly_name, const char* icon, const char* 
 
 MQTTSensor::~MQTTSensor() {}
 
-bool MQTTSensor::send_discovery() {
-    return false;
-}
-
 const char* MQTTSensor::unique_id() {
-    return "TBD";
+    return get_friendly_name();
 }
 
 const char* MQTTSensor::component_type(){
     return "sensor";
+}
+
+void MQTTSensor::set_discovery(JsonObject& root) {
+    if (!m_unit_of_measurement.empty()) {
+        root["unit_of_measurement"] = m_unit_of_measurement;
+    }
 }
 
 }

@@ -25,17 +25,17 @@ uint64_t prev_idle_time = 0;
 #endif
 
 #ifdef BE_LIKE_ESPHOME
-mqtt::MQTTSensor os_version("cabin os version", "hass:account", "cabin/system/os-version/state");
+mqtt::MQTTSensor os_version("cabin_os_version", "hass:account", "cabin/system/os-version/state");
 
-mqtt::MQTTSensor heap_current_size("cabin heap current size", "hass:account", "cabin/system/heap/current_size/state");
-mqtt::MQTTSensor heap_max_size("cabin heap max size", "hass:account", "cabin/system/heap/max_size/state");
-mqtt::MQTTSensor heap_total_size("cabin heap total size", "hass:account", "cabin/system/heap/total_size/state");
+mqtt::MQTTSensor heap_current_size("cabin_heap_current_size", "hass:account", "cabin/system/heap/current_size/state");
+mqtt::MQTTSensor heap_max_size("cabin_heap_max_size", "hass:account", "cabin/system/heap/max_size/state");
+mqtt::MQTTSensor heap_total_size("cabin_heap_total_size", "hass:account", "cabin/system/heap/total_size/state");
 
-mqtt::MQTTSensor cpu_uptime("cabin cpu uptime", "hass:account", "cabin/system/cpu/uptime/state");
-mqtt::MQTTSensor cpu_idle_time("cabin cpu uptime", "hass:account", "cabin/system/cpu/idle_time/state");
-mqtt::MQTTSensor cpu_sleep_time("cabin cpu uptime", "hass:account", "cabin/system/cpu/sleep_time/state");
-mqtt::MQTTSensor cpu_idle("cabin cpu uptime", "hass:account", "cabin/system/cpu/idle_percentage/state");
-mqtt::MQTTSensor cpu_up("cabin cpu uptime", "hass:account", "cabin/system/cpu/uptime_percentage/state");
+mqtt::MQTTSensor cpu_uptime("cabin_cpu_uptime_t", "hass:account", "cabin/system/cpu/uptime/state");
+mqtt::MQTTSensor cpu_idle_time("cabin_cpu idle_t", "hass:account", "cabin/system/cpu/idle_time/state");
+mqtt::MQTTSensor cpu_sleep_time("cabin_cpu_sleep_t", "hass:account", "cabin/system/cpu/sleep_time/state");
+mqtt::MQTTSensor cpu_idle("cabin_cpu_idle_p", "hass:account", "cabin/system/cpu/idle_percentage/state");
+mqtt::MQTTSensor cpu_up("cabin_cpu_uptime_p", "hass:account", "cabin/system/cpu/uptime_percentage/state");
 #endif
 
 void os_reporting_worker() {

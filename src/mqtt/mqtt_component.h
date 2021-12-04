@@ -2,6 +2,7 @@
 #define SRC_MQTT_COMPONENT_
 
 #include "mbed.h"
+#include "ArduinoJson.h"
 
 namespace mqtt {
 
@@ -10,7 +11,7 @@ public:
     MQTTComponent(const char* friendly_name, const char* icon, const char* state_topic);
     virtual ~MQTTComponent();
 
-    virtual bool send_discovery() = 0;
+    bool send_discovery();
     bool vpublish_state(const char* format, va_list args);
     bool publish_state(const char* format, ...);
     bool vpublish_state(const char* format, mbed::Callback<void(bool)> _cb, va_list args);
@@ -24,6 +25,7 @@ public:
 protected:
     virtual const char* unique_id() = 0;
     virtual const char* component_type() = 0;
+    virtual void set_discovery(JsonObject& root) = 0;
     
     const char* friendly_name() {
         return m_friendly_name;

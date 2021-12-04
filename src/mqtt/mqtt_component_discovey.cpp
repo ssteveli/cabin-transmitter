@@ -14,6 +14,7 @@ void mqtt_discovery_handler() {
         events_wait_any(FLAG_SYSTEM_READY);
         for (auto &component : mqtt_components) {
             log_debug("registering component: %s", component->get_friendly_name());
+            component->send_discovery();
         }
     }
 }

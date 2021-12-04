@@ -15,8 +15,8 @@ EventQueue environment_queue(32 * EVENTS_EVENT_SIZE);
 Thread environment_thread;
 
 #ifdef BE_LIKE_ESPHOME
-mqtt::MQTTSensor temp("cabin temperature", "hass:thermometer", "cabin/env/temp/state");
-mqtt::MQTTSensor humidity("cabin humidity", "hass:water-percent", "cabin/env/humidity/state");
+mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/state");
+mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 #endif
 
 void environment_read_data() {
@@ -24,7 +24,7 @@ void environment_read_data() {
 
     if (result == 0) {
         #ifdef BE_LIKE_ESPHOME
-        temp.publish_state("%0.1f", sensor.ReadTemperature(FARENHEIT));
+        temp.publish_state("%0.1f", sensor.ReadTemperature(CELCIUS));
         humidity.publish_state("%0.1f", sensor.ReadHumidity());
         #else
         time_t t = rtc_read_time();
@@ -39,7 +39,9 @@ void environment_read_data() {
 void environment_init() {
     #ifdef BE_LIKE_ESPHOME
     temp.set_retain(true);
+    temp.set_unit_of_measurement("°C");
     humidity.set_retain(true);
+    humidity.set_unit_of_measurement("%");
 
     mqtt::mqtt_register_component(&temp);
     mqtt::mqtt_register_component(&humidity);
