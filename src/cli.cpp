@@ -6,8 +6,6 @@ static BufferedSerial pc(USBTX, USBRX, 115200);
 EventQueue cli_queue(32 * EVENTS_EVENT_SIZE);
 Thread cli_thread;
 
-int fuck = 0;
-
 void cli_time() {
     rtc_time_t t;
     if (rtc_read_time(&t) == 0) {

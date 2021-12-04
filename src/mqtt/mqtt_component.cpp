@@ -29,7 +29,7 @@ bool MQTTComponent::send_discovery() {
 bool MQTTComponent::publish_state(const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    bool result = publish_state(format, NULL, vl);
+    bool result = vpublish_state(format, NULL, vl);
     va_end(vl);
 
     return result;
