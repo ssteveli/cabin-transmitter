@@ -10,6 +10,7 @@
 #define CB_I2C_SCL PB_8
 
 #define BE_LIKE_ESPHOME
+#define LTE_AUTO_DISCOVERY
 
 void config_init();
 const char* get_config_mqtt_hostname();

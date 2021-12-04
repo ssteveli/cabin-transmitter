@@ -32,9 +32,6 @@ bool MQTTComponent::send_discovery() {
 
     std::string buf = "";
     serializeJson(root, buf);
-    
-    // escape quotes in prep for using json in an mqtt value
-    find_and_replace(buf, "\"", "\\\"");
     log_debug("discovery json: %s", buf.c_str());
    
     lte_publish(discovery_topic.c_str(), buf.c_str(), NULL, 5000, true);

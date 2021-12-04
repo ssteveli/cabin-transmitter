@@ -22,7 +22,7 @@ Mutex lte_mutex;
 int lte_ping_id = -1;
 int lte_read_messages_id = -1;
 
-#define PUBLISH_BUFFER_SIZE 32
+#define PUBLISH_BUFFER_SIZE 1024
 char *lte_publish_mqtt_value_buffer = new char[PUBLISH_BUFFER_SIZE];
 
 class LTESendMessage {
@@ -205,8 +205,6 @@ void lte_operator_registration() {
     log_debug("operator registration staring on cxt %p", ThisThread::get_id());
     lte_parser->set_timeout(5000);
 
-#define AUTO_DISCOVERY
-
     // are we already online and registered?
     if (lte_parser->send("AT+CEREG?")) {
         int eps_status;
@@ -228,7 +226,7 @@ void lte_operator_registration() {
         lte_queue.call(lte_discover_baud_rate);
     }
    
-#ifdef AUTO_DISCOVERY
+#ifdef LTE_AUTO_DISCOVERY
     bool registered = false;
     for (int i=0; i<100; i++) {
         if (lte_parser->send("AT+CEREG?")) {
@@ -465,7 +463,7 @@ bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool
     memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
     vsprintf(lte_publish_mqtt_value_buffer, value, args);
 
-    char command[128];
+    char command[strlen(topic) + strlen(lte_publish_mqtt_value_buffer) + 30];
     sprintf(command, "AT+UMQTTC=2,0,%d,\"%s\",\"%s\"", retain, topic, lte_publish_mqtt_value_buffer);
 
     return lte_send(command, "+UMQTTC: 2,1", _cb), timeout;
