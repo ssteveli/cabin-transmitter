@@ -49,7 +49,7 @@ void os_reporting_worker() {
         mbed_stats_sys_get(&sys_stats);
 
         #ifdef BE_LIKE_ESPHOME
-        os_version.publish_state("%" PRId32 "", NULL, sys_stats.os_version);
+        os_version.publish_state("%" PRId32 "", sys_stats.os_version);
         #else
         lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
         #endif
