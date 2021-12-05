@@ -411,7 +411,8 @@ void lte_mqtt_login() {
     lte_reset_tasks();
     lte_parser->remove_oob(LTE_MQTT_URC_LOGGED_OUT);
     lte_parser->remove_oob(LTE_MQTT_URC_LOGIN_FAILED);
-    lte_parser->remove_oob(LTE_MQTT_OP_NOT_ALLOWED);
+    lte_parser->remove_oob(LTE_MQTT_LOGIN_FAILED);
+    lte_parser->remove_oob(LTE_MQTT_OP_NOT_SUPPORTED);
     lte_parser->remove_oob(LTE_MQTT_ERROR);
 
     lte_mutex.lock();
@@ -420,6 +421,11 @@ void lte_mqtt_login() {
     events_clear(FLAG_SYSTEM_READY);
 
     log_debug("mqtt login on cxt %p", ThisThread::get_id());
+
+    // handle failures
+    // lte_parser->oob(LTE_MQTT_URC_LOGIN_FAILED, lte_mqtt_login);
+    // lte_parser->oob(LTE_MQTT_LOGIN_FAILED, lte_mqtt_login);
+    // lte_parser->oob(LTE_MQTT_OP_NOT_SUPPORTED, lte_handle_op_not_allowed);
 
     bool setup_result = false;
     // mqtt configuration
@@ -444,13 +450,12 @@ void lte_mqtt_login() {
     ) {
         ThisThread::sleep_for(2s);
 
-        // handle being logged out (i.e. lost the server)
-        lte_parser->oob(LTE_MQTT_URC_LOGGED_OUT, lte_mqtt_login);
-        lte_parser->oob(LTE_MQTT_URC_LOGIN_FAILED, lte_mqtt_login);
+        // // handle being logged out (i.e. lost the server)
+        // lte_parser->oob(LTE_MQTT_URC_LOGGED_OUT, lte_mqtt_login);
 
-        // handle expected errors
-        lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
-        lte_parser->oob(LTE_MQTT_OP_NOT_ALLOWED, lte_handle_op_not_allowed);
+        // // handle expected errors
+        // lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
+
 
         // subscribe to configuration data
         if (lte_parser->send("AT+UMQTTC=4,1,\"cabin/config/+\"") && lte_parser->recv("+UMQTTC: 4,1")) {

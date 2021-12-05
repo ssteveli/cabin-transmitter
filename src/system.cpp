@@ -11,10 +11,6 @@
 #define MAX_THREAD_INFO 10
 #define SAMPLE_TIME_MS   2000
 
-EventQueue system_queue(32 * EVENTS_EVENT_SIZE);
-Thread system_thread;
-Thread system_os_reporting_thread;
-
 mbed_stats_heap_t heap_info;
 mbed_stats_stack_t stack_info[ MAX_THREAD_INFO ];
 mbed_stats_cpu_t stats;
@@ -38,22 +34,19 @@ mqtt::MQTTSensor cpu_idle("cabin_cpu_idle_p", "hass:account", "cabin/system/cpu/
 mqtt::MQTTSensor cpu_up("cabin_cpu_uptime_p", "hass:account", "cabin/system/cpu/uptime_percentage/state");
 #endif
 
-void os_reporting_worker() {
-    uint32_t flags_read = 0;
-    while (true) {
-        log_debug("os stats waiting for ready flag");
-        flags_read = events_wait_any(FLAG_SYSTEM_READY);
-        log_debug("reporting os information, flags: 0x%08lx", flags_read);
+#define SYS_POLLING_PERIOD 320s
+Ticker sys_ticker;
+bool sys_send = false;
 
-        mbed_stats_sys_t sys_stats;
-        mbed_stats_sys_get(&sys_stats);
+void system_startup() {
+    mbed_stats_sys_t sys_stats;
+    mbed_stats_sys_get(&sys_stats);
 
-        #ifdef BE_LIKE_ESPHOME
-        os_version.publish_state("%" PRId32 "", sys_stats.os_version);
-        #else
-        lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
-        #endif
-    }
+    #ifdef BE_LIKE_ESPHOME
+    os_version.publish_state("%" PRId32 "", sys_stats.os_version);
+    #else
+    lte_publish("cabin/system/os/version",  "%" PRId32 "", NULL, TIMEOUT,  sys_stats.os_version);
+    #endif
 }
 
 void system_read_data() {
@@ -96,9 +89,19 @@ void system_read_data() {
     #endif
 }
 
-void system_init() {
-    system_thread.start(callback(&system_queue, &EventQueue::dispatch_forever));
-    system_queue.call_every(320s, system_read_data);
+void system_flip_send_bit() {
+    sys_send = true;
+}
 
-    system_os_reporting_thread.start(callback(os_reporting_worker));
+void system_init() {
+    sys_ticker.attach(&system_flip_send_bit, SYS_POLLING_PERIOD);
+}
+
+void system_loop() {
+    if (sys_send == true) {
+        __disable_irq();
+        system_read_data();
+        sys_send = false;
+        __enable_irq();
+    }
 }

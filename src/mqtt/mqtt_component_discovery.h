@@ -7,6 +7,7 @@ namespace mqtt {
 
 void mqtt_register_component(MQTTComponent *component);
 void mqtt_component_discovery_init();
+void mqtt_discovery_startup();
 
 }
 

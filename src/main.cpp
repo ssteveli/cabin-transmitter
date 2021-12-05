@@ -29,6 +29,7 @@ int main() {
 
     log_debug("starting main loop on ctx %p", ThisThread::get_id());
     while(1) {
+        main_event_handler_loop();
     }
 }
 

@@ -6,10 +6,9 @@
 
 namespace mqtt {
 
-Thread mqtt_discovery_thread;
 std::vector<MQTTComponent*> mqtt_components;
 
-void mqtt_discovery_handler() {
+void mqtt_discovery_startup() {
     while (true) {
         events_wait_any(FLAG_SYSTEM_READY);
         for (auto &component : mqtt_components) {
@@ -25,7 +24,6 @@ void mqtt_register_component(MQTTComponent *component) {
 
 void mqtt_component_discovery_init() {
     mqtt_components.clear();
-    mqtt_discovery_thread.start(callback(mqtt_discovery_handler));
 }
 
 }

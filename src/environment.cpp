@@ -11,13 +11,15 @@
 using namespace std::chrono_literals;
 
 DHT sensor(DHT22_OUT, DHT22);
-EventQueue environment_queue(32 * EVENTS_EVENT_SIZE);
-Thread environment_thread;
 
 #ifdef BE_LIKE_ESPHOME
 mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/state");
 mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 #endif
+
+#define ENV_POLLING_PERIOD 5s
+Ticker env_ticker;
+bool env_send = false;
 
 void environment_read_data() {
     int result = sensor.readData();
@@ -36,6 +38,10 @@ void environment_read_data() {
     }
 }
 
+void env_flip_send_bit() {
+    env_send = true;
+}
+
 void environment_init() {
     #ifdef BE_LIKE_ESPHOME
     temp.set_retain(true);
@@ -46,8 +52,13 @@ void environment_init() {
     mqtt::mqtt_register_component(&temp);
     mqtt::mqtt_register_component(&humidity);
     #endif
-    
-    environment_thread.start(callback(&environment_queue, &EventQueue::dispatch_forever));
-    environment_thread.set_priority(osPriorityHigh);
-    environment_queue.call_every(120s, environment_read_data);
+
+    env_ticker.attach(callback(env_flip_send_bit), ENV_POLLING_PERIOD);
+}
+
+void environment_loop() {
+    if (env_send) {
+        environment_read_data();
+        env_send = false;
+    }
 }

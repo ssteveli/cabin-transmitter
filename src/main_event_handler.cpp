@@ -1,67 +1,33 @@
 #include "main_event_handler.h"
-#include <stdint.h>
-#include <stdbool.h>
 #include "log.h"
 #include "mbed.h"
+#include "environment.h"
+#include "system.h"
+#include "events.h"
+#include "mqtt/mqtt_component_discovery.h"
 
-#define MAIN_EVENT_QUEUE_SIZE 20
+Thread main_event_startup_thread;
 
-static main_event_t main_event_current;
-static main_event_t main_event_queue[MAIN_EVENT_QUEUE_SIZE] = { };
-static uint8_t main_event_queue_index;
+void main_event_startup_worker() {
+    while (true) {
+        log_debug("main event startup worker, waiting on ready flag");
+        events_wait_any(FLAG_SYSTEM_READY);
+
+        log_debug("system became ready, calling setups!");
+
+        system_startup();
+        mqtt::mqtt_discovery_startup();
+    }
+}
 
 void main_event_handler_init() {
-    main_event_queue_index = 0;
-    memset(main_event_queue, 0x00, sizeof(main_event_queue));
+    events_clear(FLAG_SYSTEM_READY);
+
+    main_event_startup_thread.start(callback(main_event_startup_worker));
     log_info("main_event_handler is ready");
 }
 
 void main_event_handler_loop() {
-    if (main_event_dequeue()) {
-        switch (main_event_current) {
-
-            default:
-                break;
-        }
-    }
-
-    main_event_current = EVT_IDLE;
-}
-
-bool main_event_dequeue() {
-    uint8_t i;
-    __disable_irq();
-    
-    if (main_event_queue_index > 0) {
-        main_event_current = main_event_queue[0];
-        main_event_queue[0] = EVT_IDLE;
-
-        if (main_event_queue_index > 1) {
-            for (i = 0; i < main_event_queue_index; i++) {
-                main_event_queue[i - 1] = main_event_queue[i];
-                main_event_queue[i] = EVT_IDLE;
-            }
-        }
-
-        main_event_queue_index--;
-        __enable_irq();
-        return true;
-    }
-
-    __enable_irq();
-    return false;
-}
-
-bool main_event_enqueue(main_event_t event) {
-    __disable_irq();
-
-    if (main_event_queue_index == MAIN_EVENT_QUEUE_SIZE) {
-        log_info("[MEH]: Queue full, ignoring event");
-        return false;
-    }
-
-    main_event_queue[main_event_queue_index++] = event;
-    __enable_irq();
-
-    return true;
+    environment_loop();
+    system_loop();
 }
