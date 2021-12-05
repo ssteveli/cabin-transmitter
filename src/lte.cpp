@@ -25,6 +25,9 @@ int lte_read_messages_id = -1;
 #define PUBLISH_BUFFER_SIZE 1024
 char *lte_publish_mqtt_value_buffer = new char[PUBLISH_BUFFER_SIZE];
 
+uint8_t lte_error_count = 0;
+uint8_t lte_operation_not_allowed_count = 0;
+
 class LTESendMessage {
     protected:
         char *m_command;
@@ -32,7 +35,7 @@ class LTESendMessage {
         char *m_expected;
         size_t m_expected_size;
         mbed::Callback<void(bool)> m_callback;
-        int m_timeout = TIMEOUT;
+        int m_timeout = LTE_TIMEOUT;
 
     public:
         LTESendMessage(const char *command, const char *expected, mbed::Callback<void(bool)> callback) :
@@ -82,22 +85,29 @@ void lte_send_thread_handler() {
     while (true) {
         LTESendMessage *msg;
         if (lte_send_queue.try_get(&msg)) {
-            log_debug("got from queue: %s (%p) on ctx %p", msg->get_command(), msg, ThisThread::get_id());
-            lte_mutex.lock();
+            if (lte_state == READY) {
+                log_debug("got from queue: %s (%p) on ctx %p", msg->get_command(), msg, ThisThread::get_id());
+                lte_mutex.lock();
 
-            lte_parser->set_timeout(msg->get_timeout());
-            bool result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
-            lte_parser->set_timeout(TIMEOUT);
+                lte_parser->set_timeout(msg->get_timeout());
+                bool result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
+                lte_parser->set_timeout(LTE_TIMEOUT);
 
-            mbed::Callback<void(bool)> _cb = msg->get_command_callback();
-            if (_cb) {
-                _cb(result);
+                mbed::Callback<void(bool)> _cb = msg->get_command_callback();
+                if (_cb) {
+                    _cb(result);
+                }
+
+                delete msg;
+                lte_mutex.unlock();
+
+                ThisThread::sleep_for(2s);
+            } else {
+                mbed::Callback<void(bool)> _cb = msg->get_command_callback();
+                if (_cb) {
+                    _cb(false);
+                }
             }
-
-            delete msg;
-            lte_mutex.unlock();
-
-            ThisThread::sleep_for(2s);
         }
     }
 }
@@ -118,7 +128,7 @@ void lte_init() {
 
     lte_parser = new ATCmdParser(lte_shield, "\r");
     lte_parser->debug_on(true);
-    lte_parser->set_timeout(TIMEOUT);
+    lte_parser->set_timeout(LTE_TIMEOUT);
     lte_parser->flush();
 
     lte_power_pin = 1;
@@ -131,6 +141,9 @@ void lte_init() {
 
 void lte_reset_tasks() {
     lte_queue.cancel(lte_read_messages_id);
+    lte_parser->abort();
+    lte_error_count = 0;
+    lte_operation_not_allowed_count = 0;
 }
 
 void lte_power_cycle() {
@@ -292,7 +305,7 @@ void lte_operator_registration() {
                     lte_queue.call(lte_discover_baud_rate);
                 }
 
-                lte_parser->set_timeout(TIMEOUT);
+                lte_parser->set_timeout(LTE_TIMEOUT);
             }
         } else {
             lte_queue.call(lte_mqtt_login);
@@ -371,14 +384,35 @@ void lte_issue_read_messages_request() {
     }
 
     log_debug("exiting read messages");
-    lte_parser->set_timeout(TIMEOUT);
+    lte_parser->set_timeout(LTE_TIMEOUT);
     lte_mutex.unlock();
+}
+
+void lte_handle_error() {
+    lte_error_count++;
+
+    if (lte_state != LTE_ERROR && lte_error_count > LTE_ERROR_LIMIT) {
+        lte_state = LTE_ERROR;
+        lte_queue.call(lte_operator_registration);
+    }
+}
+
+void lte_handle_op_not_allowed() {
+    lte_operation_not_allowed_count++;
+
+    if (lte_state != LTE_ERROR && lte_error_count > LTE_OP_NOT_ALLOWED_LIMIT) {
+        lte_state = LTE_ERROR;
+        lte_queue.call(lte_operator_registration);
+    }
 }
 
 void lte_mqtt_login() {
     // reset state for mqtt
     lte_reset_tasks();
-    lte_parser->remove_oob("+UUMQTTC: 1,3");
+    lte_parser->remove_oob(LTE_MQTT_URC_LOGGED_OUT);
+    lte_parser->remove_oob(LTE_MQTT_URC_LOGIN_FAILED);
+    lte_parser->remove_oob(LTE_MQTT_OP_NOT_ALLOWED);
+    lte_parser->remove_oob(LTE_MQTT_ERROR);
 
     lte_mutex.lock();
 
@@ -411,7 +445,12 @@ void lte_mqtt_login() {
         ThisThread::sleep_for(2s);
 
         // handle being logged out (i.e. lost the server)
-        lte_parser->oob("+UUMQTTC: 1,3", lte_mqtt_login);
+        lte_parser->oob(LTE_MQTT_URC_LOGGED_OUT, lte_mqtt_login);
+        lte_parser->oob(LTE_MQTT_URC_LOGIN_FAILED, lte_mqtt_login);
+
+        // handle expected errors
+        lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
+        lte_parser->oob(LTE_MQTT_OP_NOT_ALLOWED, lte_handle_op_not_allowed);
 
         // subscribe to configuration data
         if (lte_parser->send("AT+UMQTTC=4,1,\"cabin/config/+\"") && lte_parser->recv("+UMQTTC: 4,1")) {
@@ -431,7 +470,7 @@ void lte_mqtt_login() {
         lte_queue.call(lte_operator_registration);
     }
 
-    lte_parser->set_timeout(TIMEOUT);
+    lte_parser->set_timeout(LTE_TIMEOUT);
     lte_mutex.unlock();
 }
 
