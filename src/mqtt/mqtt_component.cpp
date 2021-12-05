@@ -24,14 +24,19 @@ void find_and_replace(std::string &data, std::string to_search, std::string repl
 bool MQTTComponent::send_discovery() {
     std::string discovery_topic = "homeassistant/" + std::string(this->component_type()) + "/cabin/" + this->m_friendly_name + "/config";
     
-    DynamicJsonDocument root(1024);
+    StaticJsonDocument<512> root;
     root["name"] = m_friendly_name;
     root["state_topic"] = m_state_topic;
     root["icon"] = m_icon;
     root["unique_id"] = unique_id();
     set_discovery(root);
 
-    std::string buf = "";
+    // auto device_doc = root.createNestedObject("device");
+    // device_doc["name"] = "cabin-transmitter";
+    // device_doc["sw_version"] = "v0.0.1-ALPHA";
+    // device_doc["manufacturer"] = "me";
+
+    std::string buf;
     serializeJson(root, buf);
     log_debug("discovery json: %s", buf.c_str());
    

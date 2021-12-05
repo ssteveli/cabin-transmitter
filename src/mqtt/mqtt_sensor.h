@@ -15,7 +15,7 @@ public:
 protected:
     const char* unique_id() override;
     const char* component_type() override;
-    void set_discovery(DynamicJsonDocument& root) override;
+    void set_discovery(JsonDocument& root) override;
     
 private:
     std::string m_unit_of_measurement;

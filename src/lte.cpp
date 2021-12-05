@@ -387,14 +387,24 @@ void lte_mqtt_login() {
 
     log_debug("mqtt login on cxt %p", ThisThread::get_id());
 
-    lte_parser->set_timeout(60000);
+    bool setup_result = false;
+    // mqtt configuration
+    lte_parser->set_timeout(1000);
     if (lte_parser->send("AT+UMQTTC=0") && lte_parser->recv("OK") && // mqtt logout
         lte_parser->send("AT+UMQTT=12,1") && lte_parser->recv("OK") && // mqtt clear session
         lte_parser->send("AT+UMQTT=0,\"cabin\"") && lte_parser->recv("+UMQTT: 0,1") && // set mqtt client id
         lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
         lte_parser->send("AT+UMQTT=10,30") && lte_parser->recv("+UMQTT: 10,1") && // set mqtt inactivity timeout
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
-        lte_parser->send("AT+UMQTTWMSG=\"offline\"") && lte_parser->recv("OK") && // mqtt last will message
+        lte_parser->send("AT+UMQTTWMSG=\"offline\"") && lte_parser->recv("OK") // mqtt last will message
+    ) {
+        // ready to go!
+        setup_result = true;
+    }
+
+    // mqtt login and status
+    lte_parser->set_timeout(60000);
+    if ( setup_result &&
         lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") && // mqtt login
         lte_parser->send("AT+UMQTTC=2,0,1,\"cabin/status\",\"online\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
     ) {
@@ -463,8 +473,11 @@ bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool
     memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
     vsprintf(lte_publish_mqtt_value_buffer, value, args);
 
-    char command[strlen(topic) + strlen(lte_publish_mqtt_value_buffer) + 30];
+    char *command = new char[strlen(topic) + strlen(lte_publish_mqtt_value_buffer) + 30];
     sprintf(command, "AT+UMQTTC=2,0,%d,\"%s\",\"%s\"", retain, topic, lte_publish_mqtt_value_buffer);
 
-    return lte_send(command, "+UMQTTC: 2,1", _cb), timeout;
+    bool result = lte_send(command, "+UMQTTC: 2,1", _cb, timeout);
+
+    delete[] command;
+    return result;
 }
