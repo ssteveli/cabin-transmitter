@@ -17,7 +17,7 @@ mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/s
 mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 #endif
 
-#define ENV_POLLING_PERIOD 5s
+#define ENV_POLLING_PERIOD 120s
 Ticker env_ticker;
 bool env_send = false;
 
@@ -58,7 +58,9 @@ void environment_init() {
 
 void environment_loop() {
     if (env_send) {
+        env_ticker.detach();
         environment_read_data();
         env_send = false;
+        env_ticker.attach(callback(env_flip_send_bit), ENV_POLLING_PERIOD);
     }
 }

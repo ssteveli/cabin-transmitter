@@ -45,7 +45,6 @@ constexpr char LTE_SHIELD_COMMAND_BAUD[] = "AT+IPR";
 constexpr char LTE_SHIELD_OPERATOR_SELECTION[] = "AT+COPS";
 
 constexpr char LTE_MQTT_URC_LOGGED_OUT[] = "+UUMQTTC: 1,3";
-constexpr char LTE_MQTT_URC_LOGIN_FAILED[] = "+UUMQTTC: 1,0";
 constexpr char LTE_MQTT_LOGIN_FAILED[] = "+UMQTTC: 1,0";
 constexpr char LTE_MQTT_OP_NOT_SUPPORTED[] = "+CME ERROR: Operation not supported";
 constexpr char LTE_MQTT_ERROR[] = "ERROR";

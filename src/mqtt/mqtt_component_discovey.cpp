@@ -9,12 +9,9 @@ namespace mqtt {
 std::vector<MQTTComponent*> mqtt_components;
 
 void mqtt_discovery_startup() {
-    while (true) {
-        events_wait_any(FLAG_SYSTEM_READY);
-        for (auto &component : mqtt_components) {
-            log_debug("registering component: %s", component->get_friendly_name());
-            component->send_discovery();
-        }
+    for (auto &component : mqtt_components) {
+        log_debug("registering component: %s", component->get_friendly_name());
+        component->send_discovery();
     }
 }
 

@@ -31,15 +31,15 @@ bool MQTTComponent::send_discovery() {
     root["unique_id"] = unique_id();
     set_discovery(root);
 
-    // auto device_doc = root.createNestedObject("device");
-    // device_doc["name"] = "cabin-transmitter";
-    // device_doc["sw_version"] = "v0.0.1-ALPHA";
-    // device_doc["manufacturer"] = "me";
-
+    auto device_doc = root.createNestedObject("device");
+    device_doc["name"] = "cabin-transmitter";
+    device_doc["sw_version"] = "v0.0.1-ALPHA";
+    device_doc["manufacturer"] = "me";
+    device_doc["identifiers"] = "cabindev";
+    
     std::string buf;
     serializeJson(root, buf);
-    log_debug("discovery json: %s", buf.c_str());
-   
+
     lte_publish(discovery_topic.c_str(), buf.c_str(), NULL, 5000, true);
 
     return true;

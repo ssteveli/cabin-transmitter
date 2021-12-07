@@ -9,7 +9,7 @@ DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
 
-const int lte_desired_baud = 9600;
+const int lte_desired_baud = 115200;
 uint8_t lte_baud_selection_counter = 0;
 bool lte_baud_selection_reset = false;
 lte_state_t lte_state = INIT;
@@ -22,8 +22,8 @@ Mutex lte_mutex;
 int lte_ping_id = -1;
 int lte_read_messages_id = -1;
 
-#define PUBLISH_BUFFER_SIZE 1024
-char *lte_publish_mqtt_value_buffer = new char[PUBLISH_BUFFER_SIZE];
+#define LTE_BUFFER_SIZE 1024
+char *lte_publish_mqtt_value_buffer = new char[LTE_BUFFER_SIZE];
 
 uint8_t lte_error_count = 0;
 uint8_t lte_operation_not_allowed_count = 0;
@@ -79,7 +79,7 @@ class LTESendMessage {
 };
 
 Queue<LTESendMessage, 16> lte_send_queue;
-Thread lte_send_thread;
+Thread lte_send_thread; 
 
 void lte_send_thread_handler() {
     while (true) {
@@ -126,7 +126,7 @@ void lte_init() {
     lte_shield->set_flow_control(BufferedSerial::Flow::Disabled); 
     lte_shield->set_format(8, BufferedSerial::Parity::None, 1);
 
-    lte_parser = new ATCmdParser(lte_shield, "\r");
+    lte_parser = new ATCmdParser(lte_shield, "\r", LTE_BUFFER_SIZE);
     lte_parser->debug_on(true);
     lte_parser->set_timeout(LTE_TIMEOUT);
     lte_parser->flush();
@@ -174,6 +174,7 @@ void lte_discover_baud_rate() {
         for (int i=0; i<NUM_SUPPORTED_BAUD; i++) {
             lte_shield->set_baud(LTE_SHIELD_SUPPORTED_BAUD[i]);
             if (lte_parser->send("AT+IPR=%d", lte_desired_baud)) {
+                ThisThread::sleep_for(500ms);
                 lte_shield->set_baud(lte_desired_baud);
                 ThisThread::sleep_for(200ms);
 
@@ -393,24 +394,28 @@ void lte_handle_error() {
 
     if (lte_state != LTE_ERROR && lte_error_count > LTE_ERROR_LIMIT) {
         lte_state = LTE_ERROR;
-        lte_queue.call(lte_operator_registration);
+        lte_parser->abort();
     }
 }
 
 void lte_handle_op_not_allowed() {
     lte_operation_not_allowed_count++;
 
-    if (lte_state != LTE_ERROR && lte_error_count > LTE_OP_NOT_ALLOWED_LIMIT) {
+    if (lte_state != LTE_ERROR && lte_operation_not_allowed_count > LTE_OP_NOT_ALLOWED_LIMIT) {
         lte_state = LTE_ERROR;
-        lte_queue.call(lte_operator_registration);
+        lte_parser->abort();
     }
+}
+
+void lte_handle_login_failed() {
+    ThisThread::sleep_for(2s);
+    lte_parser->abort();
 }
 
 void lte_mqtt_login() {
     // reset state for mqtt
     lte_reset_tasks();
     lte_parser->remove_oob(LTE_MQTT_URC_LOGGED_OUT);
-    lte_parser->remove_oob(LTE_MQTT_URC_LOGIN_FAILED);
     lte_parser->remove_oob(LTE_MQTT_LOGIN_FAILED);
     lte_parser->remove_oob(LTE_MQTT_OP_NOT_SUPPORTED);
     lte_parser->remove_oob(LTE_MQTT_ERROR);
@@ -423,9 +428,8 @@ void lte_mqtt_login() {
     log_debug("mqtt login on cxt %p", ThisThread::get_id());
 
     // handle failures
-    // lte_parser->oob(LTE_MQTT_URC_LOGIN_FAILED, lte_mqtt_login);
-    // lte_parser->oob(LTE_MQTT_LOGIN_FAILED, lte_mqtt_login);
-    // lte_parser->oob(LTE_MQTT_OP_NOT_SUPPORTED, lte_handle_op_not_allowed);
+    lte_parser->oob(LTE_MQTT_LOGIN_FAILED, lte_handle_login_failed);
+    lte_parser->oob(LTE_MQTT_OP_NOT_SUPPORTED, lte_handle_op_not_allowed);
 
     bool setup_result = false;
     // mqtt configuration
@@ -450,11 +454,11 @@ void lte_mqtt_login() {
     ) {
         ThisThread::sleep_for(2s);
 
-        // // handle being logged out (i.e. lost the server)
-        // lte_parser->oob(LTE_MQTT_URC_LOGGED_OUT, lte_mqtt_login);
+        // handle being logged out (i.e. lost the server)
+        lte_parser->oob(LTE_MQTT_URC_LOGGED_OUT, lte_handle_login_failed);
 
-        // // handle expected errors
-        // lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
+        // handle expected errors
+        lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
 
 
         // subscribe to configuration data
@@ -514,7 +518,7 @@ bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)
 }
 
 bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, va_list args) {
-    memset(lte_publish_mqtt_value_buffer, 0, PUBLISH_BUFFER_SIZE);
+    memset(lte_publish_mqtt_value_buffer, 0, LTE_BUFFER_SIZE);
     vsprintf(lte_publish_mqtt_value_buffer, value, args);
 
     char *command = new char[strlen(topic) + strlen(lte_publish_mqtt_value_buffer) + 30];

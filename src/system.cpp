@@ -98,10 +98,10 @@ void system_init() {
 }
 
 void system_loop() {
-    if (sys_send == true) {
-        __disable_irq();
+    if (sys_send) {
+        sys_ticker.detach();
         system_read_data();
         sys_send = false;
-        __enable_irq();
+        sys_ticker.attach(&system_flip_send_bit, SYS_POLLING_PERIOD);
     }
 }
