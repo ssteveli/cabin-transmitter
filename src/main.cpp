@@ -10,10 +10,6 @@
 
 static void main_init();
 
-void handle(bool result) {
-    log_debug("result: %d on ctx %p", result, ThisThread::get_id());
-}
-
 int main() {
     main_init();
 
