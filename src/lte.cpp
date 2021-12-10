@@ -52,6 +52,8 @@ class LTESendMessage {
             m_expected[m_expected_size] = 0;
         }
 
+        uint8_t retry_count = 0;
+
         ~LTESendMessage() {
             delete[] m_command;
             delete[] m_expected;
@@ -86,12 +88,14 @@ void lte_send_thread_handler() {
         LTESendMessage *msg;
         if (lte_send_queue.try_get(&msg)) {
             if (lte_state == READY) {
-                log_debug("got from queue: %s (%p) on ctx %p", msg->get_command(), msg, ThisThread::get_id());
+                log_debug("got from queue, count %d: %s (%p) on ctx %p", msg->retry_count, msg->get_command(), msg, ThisThread::get_id());
+                msg->retry_count++;
                 lte_mutex.lock();
 
                 lte_parser->set_timeout(msg->get_timeout());
                 bool result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
                 lte_parser->set_timeout(LTE_TIMEOUT);
+
 
                 mbed::Callback<void(bool)> _cb = msg->get_command_callback();
                 if (_cb) {
@@ -101,7 +105,12 @@ void lte_send_thread_handler() {
                 delete msg;
                 lte_mutex.unlock();
 
-                ThisThread::sleep_for(2s);
+                ThisThread::sleep_for(1s);
+
+                if (!result && msg->retry_count < 5) {
+                    log_debug("retrying message, count: %d", msg->retry_count);
+                    lte_send_queue.try_put(msg);
+                }
             } else {
                 mbed::Callback<void(bool)> _cb = msg->get_command_callback();
                 if (_cb) {
