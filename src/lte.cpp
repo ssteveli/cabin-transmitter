@@ -161,6 +161,7 @@ void lte_init() {
 }
 
 void lte_reset_tasks() {
+    lte_led = 0;
     lte_queue.cancel(lte_read_messages_id);
     lte_parser->abort();
     lte_error_count = 0;
@@ -191,6 +192,7 @@ void lte_discover_baud_rate() {
 
     bool success = false;
     bool pwr = true;
+    lte_parser->set_timeout(500);
     while (!success) {
         for (int i=0; i<NUM_SUPPORTED_BAUD; i++) {
             lte_shield->set_baud(LTE_SHIELD_SUPPORTED_BAUD[i]);
@@ -226,6 +228,7 @@ void lte_discover_baud_rate() {
         lte_queue.call(lte_discover_baud_rate);
     }
 
+    lte_parser->set_timeout(LTE_TIMEOUT);
     lte_mutex.unlock();
 }
 
@@ -428,14 +431,6 @@ void lte_handle_error() {
     lte_parser->recv("+UMQTTER: %d,%d", &err_code, &secondary_err_code);
     log_debug("mqtt error information: %d,%d", err_code, secondary_err_code);
 
-    // if (err_code == 390) {
-    //     lte_parser->send("AT+UMQTTC=8,mqtt.stevelinck.com");
-
-    //     int result;
-    //     lte_parser->recv("+UMQTTC=8,%d", &result);
-    //     log_debug("mqtt ping result: %d", result);
-    // }
-
     if (lte_state != LTE_ERROR && lte_error_count > LTE_ERROR_LIMIT) {
         lte_state = LTE_ERROR;
         lte_parser->abort();
@@ -452,6 +447,7 @@ void lte_handle_op_not_allowed() {
 }
 
 void lte_handle_login_failed() {
+    lte_led = 0;
     ThisThread::sleep_for(2s);
     lte_parser->abort();
 }
@@ -484,7 +480,7 @@ void lte_mqtt_login() {
         lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
         lte_parser->send("AT+UMQTT=10,30") && lte_parser->recv("+UMQTT: 10,1") && // set mqtt inactivity timeout
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
-        lte_parser->send("AT+UMQTTWMSG=\"offline\"") && lte_parser->recv("OK") // mqtt last will message
+        lte_parser->send("AT+UMQTTWMSG=\"OFF\"") && lte_parser->recv("OK") // mqtt last will message
     ) {
         // ready to go!
         setup_result = true;
@@ -515,7 +511,7 @@ void lte_mqtt_login() {
         log_debug("mqtt setup completed, we're ready to go on cxt %p", ThisThread::get_id());
         lte_state = READY;
 
-        cabin_status.publish_state("online", [](bool result){
+        cabin_status.publish_state(true, [](bool result){
             if (result) {
                 // schedule a refresh to read unread URC messages
                 lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
@@ -536,7 +532,6 @@ void lte_mqtt_login() {
         lte_parser->set_timeout(LTE_TIMEOUT);
         lte_mutex.unlock();
     }
-
 }
 
 void _send(const char *command, const char *expected_response, mbed::Callback<void(bool)> _cb) {
