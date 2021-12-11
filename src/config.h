@@ -9,6 +9,7 @@
 #define LTE_RST PB_0
 #define LTE_RX PB_7
 #define LTE_TX PB_6
+#define BAT PA_4
 #endif
 
 #ifdef TARGET_NUCLEO_L401RE
@@ -19,6 +20,7 @@
 #define LTE_RST D6
 #define LTE_RX PA_10
 #define LTE_TX PA_9
+#define BAT PA_4
 #endif
 
 #define BE_LIKE_ESPHOME
