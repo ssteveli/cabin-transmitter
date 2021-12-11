@@ -5,15 +5,15 @@
 #include "mqtt/mqtt_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
 
-mqtt::MQTTSensor battery("cabin_battery", "hass:battery", "cabin/env/battery/state");
+mqtt::MQTTSensor battery_volts("cabin_battery", "hass:battery", "cabin/battery/volts/state");
 
 #define BAT_POLLING_PERIOD 120s
 Ticker bat_ticker;
 bool bat_send = false;
 
 void bat_read_data() {
-    float volts = 0.0f;
-    battery.publish_state(volts);
+    float volts = 25.7f;
+    battery_volts.publish_state(volts);
 }
 
 void bat_flip_send_bit() {
@@ -21,10 +21,10 @@ void bat_flip_send_bit() {
 }
 
 void bat_init() {
-    battery.set_retain(true);
-    battery.set_unit_of_measurement("V");
+    battery_volts.set_retain(true);
+    battery_volts.set_unit_of_measurement("V");
 
-    mqtt::mqtt_register_component(&battery);
+    mqtt::mqtt_register_component(&battery_volts);
 
     bat_ticker.attach(callback(bat_flip_send_bit), BAT_POLLING_PERIOD);
 }
