@@ -24,6 +24,7 @@ Mutex lte_mutex;
 
 int lte_ping_id = -1;
 int lte_read_messages_id = -1;
+bool lte_pwr_vs_hw_reset_cycle = true;
 
 #define LTE_BUFFER_SIZE 1024
 char *lte_publish_mqtt_value_buffer = new char[LTE_BUFFER_SIZE];
@@ -182,6 +183,16 @@ void lte_hw_reset() {
     lte_reset_pin = 1;
 }
 
+void lte_cycle() {
+    if (lte_pwr_vs_hw_reset_cycle) {
+        lte_power_cycle();
+    } else {
+        lte_hw_reset();
+    }
+
+    lte_pwr_vs_hw_reset_cycle = !lte_pwr_vs_hw_reset_cycle;
+}
+
 void lte_discover_baud_rate() {
     lte_reset_tasks();
 
@@ -191,7 +202,6 @@ void lte_discover_baud_rate() {
     events_clear(FLAG_SYSTEM_READY);
 
     bool success = false;
-    bool pwr = true;
     lte_parser->set_timeout(500);
     while (!success) {
         for (int i=0; i<NUM_SUPPORTED_BAUD; i++) {
@@ -211,13 +221,7 @@ void lte_discover_baud_rate() {
         }
 
         if (!success) {
-            if (pwr) {
-                lte_power_cycle();
-            } else {
-                lte_hw_reset();
-            }
-
-            pwr = !pwr;
+            lte_cycle();
         }
     }
 
@@ -247,7 +251,7 @@ void lte_operator_registration() {
     if (lte_parser->send("AT+CEREG?")) {
         int eps_status;
         if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
-            lte_power_cycle();
+            lte_cycle();
             lte_queue.call(lte_discover_baud_rate);
             lte_mutex.unlock();
             return;
@@ -277,7 +281,7 @@ void lte_operator_registration() {
             int eps_status;
             if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
                 lte_led = 0;
-                lte_power_cycle();
+                lte_cycle();
                 lte_queue.call(lte_discover_baud_rate);
                 lte_mutex.unlock();
                 return;
