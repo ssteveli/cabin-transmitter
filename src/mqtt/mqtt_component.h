@@ -12,10 +12,10 @@ public:
     virtual ~MQTTComponent();
 
     bool send_discovery();
-    bool vpublish_state(const char* format, va_list args);
-    bool publish_state(const char* format, ...);
-    bool vpublish_state(const char* format, mbed::Callback<void(bool)> _cb, va_list args);
-    bool publish_state(const char* format, mbed::Callback<void(bool)> _cb, ...);
+    bool vpublish(const char* format, va_list args);
+    bool publish(const char* format, ...);
+    bool vpublish(const char* format, mbed::Callback<void(bool)> _cb, va_list args);
+    bool publish(const char* format, mbed::Callback<void(bool)> _cb, ...);
     void set_timeout(int timeout) { m_timeout = timeout; }
     int get_timeout(int timeout) { return m_timeout; }
     void set_retain(bool retain) { m_retain = retain; }

@@ -11,6 +11,10 @@ public:
     MQTTSensor(const char* friendly_name, const char* icon, const char* state_topic);
     ~MQTTSensor();
     void set_unit_of_measurement(const std::string &s) { m_unit_of_measurement = s; }
+    bool publish_state(float value);
+    bool publish_state(uint32_t value);
+    bool publish_state(uint8_t value);
+    bool publish_state(us_timestamp_t value);
 
 protected:
     const char* unique_id() override;

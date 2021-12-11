@@ -21,4 +21,20 @@ void MQTTSensor::set_discovery(JsonDocument& root) {
     }
 }
 
+bool MQTTSensor::publish_state(float value) {
+    return publish("%0.1f", value);
+}
+
+bool MQTTSensor::publish_state(uint32_t value) {
+    return publish("%ld", value);
+}
+
+bool MQTTSensor::publish_state(uint8_t value) {
+    return publish("%d", value);
+}
+
+bool MQTTSensor::publish_state(us_timestamp_t value) {
+    return publish("%ld", value);
+}
+
 }

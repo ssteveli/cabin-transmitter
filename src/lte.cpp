@@ -2,9 +2,12 @@
 #include "log.h"
 #include "config.h"
 #include "events.h"
+#include "mqtt/mqtt_binary_sensor.h"
+#include "mqtt/mqtt_component_discovery.h"
 
 using namespace std::chrono_literals;
 
+DigitalOut lte_led(LED3);
 DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
@@ -27,6 +30,8 @@ char *lte_publish_mqtt_value_buffer = new char[LTE_BUFFER_SIZE];
 
 uint8_t lte_error_count = 0;
 uint8_t lte_operation_not_allowed_count = 0;
+
+mqtt::MQTTBinarySensor cabin_status("cabin_status", "mdi:lan-connect", "cabin/status");
 
 class LTESendMessage {
     protected:
@@ -89,13 +94,19 @@ void lte_send_thread_handler() {
         if (lte_send_queue.try_get(&msg)) {
             if (lte_state == READY) {
                 log_debug("got from queue, count %d: %s (%p) on ctx %p", msg->retry_count, msg->get_command(), msg, ThisThread::get_id());
-                msg->retry_count++;
+
                 lte_mutex.lock();
 
+                bool result = false;
                 lte_parser->set_timeout(msg->get_timeout());
-                bool result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
-                lte_parser->set_timeout(LTE_TIMEOUT);
 
+                while (!result && msg->retry_count++ < 3) {
+                    result = lte_parser->send(msg->get_command()) && lte_parser->recv(msg->get_expected());
+
+                    if (!result) ThisThread::sleep_for(2s);
+                }
+
+                lte_parser->set_timeout(LTE_TIMEOUT);
 
                 mbed::Callback<void(bool)> _cb = msg->get_command_callback();
                 if (_cb) {
@@ -105,11 +116,9 @@ void lte_send_thread_handler() {
                 delete msg;
                 lte_mutex.unlock();
 
-                ThisThread::sleep_for(1s);
-
                 if (!result && msg->retry_count < 5) {
                     log_debug("retrying message, count: %d", msg->retry_count);
-                    lte_send_queue.try_put(msg);
+                    //lte_send_queue.try_put(msg);
                 }
             } else {
                 mbed::Callback<void(bool)> _cb = msg->get_command_callback();
@@ -122,6 +131,7 @@ void lte_send_thread_handler() {
 }
 
 void lte_init() {
+    lte_led = 0;
     if (lte_shield != NULL) {
         delete lte_shield;
     }
@@ -146,6 +156,8 @@ void lte_init() {
     lte_send_thread.start(callback(lte_send_thread_handler));
     lte_thread.start(callback(&lte_queue, &EventQueue::dispatch_forever));
     lte_queue.call(lte_discover_baud_rate);
+
+    mqtt::mqtt_register_component(&cabin_status);
 }
 
 void lte_reset_tasks() {
@@ -231,7 +243,12 @@ void lte_operator_registration() {
     // are we already online and registered?
     if (lte_parser->send("AT+CEREG?")) {
         int eps_status;
-        lte_parser->recv("+CEREG: %*d,%d", &eps_status);
+        if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
+            lte_power_cycle();
+            lte_queue.call(lte_discover_baud_rate);
+            lte_mutex.unlock();
+            return;
+        }
 
         if (eps_status == 1 || eps_status == 5) {
             lte_queue.call(lte_mqtt_login);
@@ -252,9 +269,16 @@ void lte_operator_registration() {
 #ifdef LTE_AUTO_DISCOVERY
     bool registered = false;
     for (int i=0; i<100; i++) {
+        lte_led = 1;
         if (lte_parser->send("AT+CEREG?")) {
             int eps_status;
-            lte_parser->recv("+CEREG: %*d,%d", &eps_status);
+            if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
+                lte_led = 0;
+                lte_power_cycle();
+                lte_queue.call(lte_discover_baud_rate);
+                lte_mutex.unlock();
+                return;
+            }
 
             if (eps_status == 1 || eps_status == 5) {
                 registered = true;
@@ -266,14 +290,13 @@ void lte_operator_registration() {
                 break;
             }
         }
-
+        lte_led = 0;
         ThisThread::sleep_for(10s);
     }
 
     if (registered) {
         lte_queue.call(lte_mqtt_login);
     } else {
-        lte_hw_reset();
         lte_queue.call(lte_discover_baud_rate);
     }
 #endif
@@ -400,6 +423,18 @@ void lte_issue_read_messages_request() {
 
 void lte_handle_error() {
     lte_error_count++;
+    lte_parser->send("AT+UMQTTER");
+    int err_code, secondary_err_code;
+    lte_parser->recv("+UMQTTER: %d,%d", &err_code, &secondary_err_code);
+    log_debug("mqtt error information: %d,%d", err_code, secondary_err_code);
+
+    // if (err_code == 390) {
+    //     lte_parser->send("AT+UMQTTC=8,mqtt.stevelinck.com");
+
+    //     int result;
+    //     lte_parser->recv("+UMQTTC=8,%d", &result);
+    //     log_debug("mqtt ping result: %d", result);
+    // }
 
     if (lte_state != LTE_ERROR && lte_error_count > LTE_ERROR_LIMIT) {
         lte_state = LTE_ERROR;
@@ -458,8 +493,7 @@ void lte_mqtt_login() {
     // mqtt login and status
     lte_parser->set_timeout(60000);
     if ( setup_result &&
-        lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") && // mqtt login
-        lte_parser->send("AT+UMQTTC=2,0,1,\"cabin/status\",\"online\"") && lte_parser->recv("+UMQTTC: 2,1") // set cabin status to on
+        lte_parser->send("AT+UMQTTC=1") && lte_parser->recv("+UMQTTC: 1,1") // mqtt login
     ) {
         ThisThread::sleep_for(2s);
 
@@ -476,20 +510,33 @@ void lte_mqtt_login() {
             log_debug("subscribed to cabin/config");
         }
 
-        // schedule a refresh to read unread URC messages
-        lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
-
+        lte_parser->set_timeout(LTE_TIMEOUT);
+        lte_mutex.unlock();
         log_debug("mqtt setup completed, we're ready to go on cxt %p", ThisThread::get_id());
         lte_state = READY;
-        events_set(FLAG_SYSTEM_READY);
+
+        cabin_status.publish_state("online", [](bool result){
+            if (result) {
+                // schedule a refresh to read unread URC messages
+                lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
+                events_set(FLAG_SYSTEM_READY);
+                lte_led = 1;
+            } else {
+                log_debug("not able to publish cabin state online");
+                lte_queue.call(lte_operator_registration);
+            }
+        });
+
+
+
     } else {
         // sleep for a bit
         ThisThread::sleep_for(3s);
         lte_queue.call(lte_operator_registration);
+        lte_parser->set_timeout(LTE_TIMEOUT);
+        lte_mutex.unlock();
     }
 
-    lte_parser->set_timeout(LTE_TIMEOUT);
-    lte_mutex.unlock();
 }
 
 void _send(const char *command, const char *expected_response, mbed::Callback<void(bool)> _cb) {

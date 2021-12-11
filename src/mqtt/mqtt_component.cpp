@@ -31,11 +31,8 @@ bool MQTTComponent::send_discovery() {
     root["unique_id"] = unique_id();
     set_discovery(root);
 
-    auto device_doc = root.createNestedObject("device");
-    device_doc["name"] = "cabin-transmitter";
-    device_doc["sw_version"] = "v0.0.1-ALPHA";
-    device_doc["manufacturer"] = "me";
-    device_doc["identifiers"] = "cabindev";
+    // auto device_doc = root.createNestedObject("device");
+    // device_doc["name"] = "cabin_t";
     
     std::string buf;
     serializeJson(root, buf);
@@ -45,16 +42,16 @@ bool MQTTComponent::send_discovery() {
     return true;
 }
 
-bool MQTTComponent::publish_state(const char* format, ...) {
+bool MQTTComponent::publish(const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    bool result = vpublish_state(format, NULL, vl);
+    bool result = vpublish(format, NULL, vl);
     va_end(vl);
 
     return result;
 }
 
-bool MQTTComponent::publish_state(const char* format, mbed::Callback<void(bool)> _cb, ...) {
+bool MQTTComponent::publish(const char* format, mbed::Callback<void(bool)> _cb, ...) {
     va_list vl;
     va_start(vl, _cb);
     bool result = lte_vpublish(m_state_topic, format, _cb, m_timeout, m_retain, vl);
@@ -63,11 +60,11 @@ bool MQTTComponent::publish_state(const char* format, mbed::Callback<void(bool)>
     return result;
 }
 
-bool MQTTComponent::vpublish_state(const char* format, va_list args) {
-    return vpublish_state(format, NULL, args);
+bool MQTTComponent::vpublish(const char* format, va_list args) {
+    return vpublish(format, NULL, args);
 }
 
-bool MQTTComponent::vpublish_state(const char* format, mbed::Callback<void(bool)> _cb, va_list args) {
+bool MQTTComponent::vpublish(const char* format, mbed::Callback<void(bool)> _cb, va_list args) {
     return lte_vpublish(m_state_topic, format, _cb, m_timeout, m_retain, args);
 }
 

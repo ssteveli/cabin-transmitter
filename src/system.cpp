@@ -39,16 +39,16 @@ void system_startup() {
     mbed_stats_sys_t sys_stats;
     mbed_stats_sys_get(&sys_stats);
 
-    os_version.publish_state("%" PRId32 "", sys_stats.os_version);
+    os_version.publish_state(sys_stats.os_version);
 }
 
 void system_read_data() {
     // heap
     mbed_stats_heap_get(&heap_info);
 
-    heap_current_size.publish_state("%ld", heap_info.current_size);
-    heap_max_size.publish_state("%ld", heap_info.max_size);
-    heap_total_size.publish_state("%ld", heap_info.total_size);
+    heap_current_size.publish_state(heap_info.current_size);
+    heap_max_size.publish_state(heap_info.max_size);
+    heap_total_size.publish_state(heap_info.total_size);
 
     // CPU
     mbed_stats_cpu_get(&stats);
@@ -57,11 +57,11 @@ void system_read_data() {
     uint8_t usage = 100 - ((diff_usec * 100) / (SAMPLE_TIME_MS*1000));
     prev_idle_time = stats.idle_time;
 
-    cpu_uptime.publish_state("%ld", stats.uptime);
-    cpu_idle_time.publish_state("%ld", stats.idle_time);
-    cpu_sleep_time.publish_state("%ld", stats.sleep_time);
-    cpu_idle.publish_state("%d%%", idle);
-    cpu_up.publish_state("%d%%", usage);
+    cpu_uptime.publish_state(stats.uptime);
+    cpu_idle_time.publish_state(stats.idle_time);
+    cpu_sleep_time.publish_state(stats.sleep_time);
+    cpu_idle.publish_state(idle);
+    cpu_up.publish_state(usage);
 }
 
 void system_flip_send_bit() {

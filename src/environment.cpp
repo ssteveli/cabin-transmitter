@@ -18,11 +18,16 @@ Ticker env_ticker;
 bool env_send = false;
 
 void environment_read_data() {
-    int result = sensor.readData();
+    int result = -1;
+    int attempts = 0;
+
+    while (result != 0 && ++attempts < 10) {
+        result = sensor.readData();
+    }
 
     if (result == 0) {
-        temp.publish_state("%0.1f", sensor.ReadTemperature(FARENHEIT));
-        humidity.publish_state("%0.1f", sensor.ReadHumidity());
+        temp.publish_state(sensor.ReadTemperature(FARENHEIT));
+        humidity.publish_state(sensor.ReadHumidity());
     } else {
         log_debug("dhr error: %i", result);
     }
