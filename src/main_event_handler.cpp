@@ -5,6 +5,7 @@
 #include "system.h"
 #include "events.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "battery_monitor.h"
 
 Thread main_event_startup_thread;
 
@@ -30,4 +31,5 @@ void main_event_handler_init() {
 void main_event_handler_loop() {
     environment_loop();
     system_loop();
+    bat_loop();
 }

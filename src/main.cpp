@@ -7,6 +7,7 @@
 #include "rtc.h"
 #include "system.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "battery_monitor.h"
 
 static void main_init();
 
@@ -40,4 +41,5 @@ static void main_init() {
     lte_init();
     system_init();
     environment_init();
+    bat_init();
 }
