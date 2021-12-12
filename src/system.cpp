@@ -17,7 +17,6 @@ uint64_t prev_idle_time = 0;
 #error [NOT_SUPPORTED] System statistics not supported
 #endif
 
-#ifdef BE_LIKE_ESPHOME
 mqtt::MQTTSensor os_version("cabin_os_version", "hass:account", "cabin/system/os-version/state");
 
 mqtt::MQTTSensor heap_current_size("cabin_heap_current_size", "hass:account", "cabin/system/heap/current_size/state");
@@ -29,7 +28,6 @@ mqtt::MQTTSensor cpu_idle_time("cabin_cpu idle_t", "hass:account", "cabin/system
 mqtt::MQTTSensor cpu_sleep_time("cabin_cpu_sleep_t", "hass:account", "cabin/system/cpu/sleep_time/state");
 mqtt::MQTTSensor cpu_idle("cabin_cpu_idle_p", "hass:account", "cabin/system/cpu/idle_percentage/state");
 mqtt::MQTTSensor cpu_up("cabin_cpu_uptime_p", "hass:account", "cabin/system/cpu/uptime_percentage/state");
-#endif
 
 #define SYS_POLLING_PERIOD 320s
 Ticker sys_ticker;

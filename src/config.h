@@ -23,7 +23,6 @@
 #define BAT PA_4
 #endif
 
-#define BE_LIKE_ESPHOME
 #define LTE_AUTO_DISCOVERY
 
 void config_init();
