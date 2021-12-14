@@ -518,7 +518,7 @@ void lte_mqtt_login() {
         cabin_status.publish_state(true, [](bool result){
             if (result) {
                 // schedule a refresh to read unread URC messages
-                lte_read_messages_id = lte_queue.call_every(60s, lte_issue_read_messages_request);
+                lte_read_messages_id = lte_queue.call_every(320s, lte_issue_read_messages_request);
                 events_set(FLAG_SYSTEM_READY);
                 lte_led = 1;
             } else {

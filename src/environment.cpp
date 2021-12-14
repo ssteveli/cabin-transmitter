@@ -13,7 +13,7 @@ DHT sensor(DHT22_OUT, DHT22);
 mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/state");
 mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 
-#define ENV_POLLING_PERIOD 120s
+#define ENV_POLLING_PERIOD 320s
 Ticker env_ticker;
 bool env_send = false;
 
