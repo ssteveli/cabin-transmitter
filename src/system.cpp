@@ -52,7 +52,7 @@ void system_init() {
     mqtt::mqtt_register_component(&heap_current_size);
     mqtt::mqtt_register_component(&heap_max_size);
     mqtt::mqtt_register_component(&heap_total_size);
-    
+
     sys_ticker.attach(&system_flip_send_bit, SYS_POLLING_PERIOD);
 }
 

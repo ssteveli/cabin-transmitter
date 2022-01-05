@@ -4,6 +4,9 @@
 #include "events.h"
 #include "mqtt/mqtt_binary_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "main_event_handler.h"
+
+#define LTE_POLLING_PERIOD 320s
 
 using namespace std::chrono_literals;
 
@@ -21,9 +24,9 @@ ATCmdParser *lte_parser;
 Thread lte_thread;
 
 Mutex lte_mutex;
+Ticker lte_ticker;
+bool lte_stats_send = false;
 
-int lte_ping_id = -1;
-int lte_read_messages_id = -1;
 bool lte_pwr_vs_hw_reset_cycle = true;
 
 #define LTE_BUFFER_SIZE 1024
@@ -131,6 +134,10 @@ void lte_send_thread_handler() {
     }
 }
 
+void lte_flip_send_bit() {
+    lte_stats_send = true;
+}
+
 void lte_init() {
     lte_led = 0;
     if (lte_shield != NULL) {
@@ -159,11 +166,11 @@ void lte_init() {
     lte_queue.call(lte_discover_baud_rate);
 
     mqtt::mqtt_register_component(&cabin_status);
+    lte_ticker.attach(callback(lte_flip_send_bit), LTE_POLLING_PERIOD);
 }
 
 void lte_reset_tasks() {
     lte_led = 0;
-    lte_queue.cancel(lte_read_messages_id);
     lte_parser->abort();
     lte_error_count = 0;
     lte_operation_not_allowed_count = 0;
@@ -275,10 +282,14 @@ void lte_operator_registration() {
    
 #ifdef LTE_AUTO_DISCOVERY
     bool registered = false;
-    for (int i=0; i<100; i++) {
+    bool searching = true;
+    uint16_t counter = 0;
+
+    while (searching) {
         lte_led = 1;
         if (lte_parser->send("AT+CEREG?")) {
             int eps_status;
+
             if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
                 lte_led = 0;
                 lte_cycle();
@@ -287,18 +298,32 @@ void lte_operator_registration() {
                 return;
             }
 
-            if (eps_status == 1 || eps_status == 5) {
-                registered = true;
-                break;
-            } else if (eps_status == 2) {
-                log_debug("still performing network registration, attempt %d/%d", i+1, 100);
-            } else {
-                registered = false;
-                break;
+            counter++;
+
+            switch (eps_status) {
+                case 1:
+                case 5:
+                    log_debug("network registration completed after %d attempts", counter);
+                    registered = true;
+                    searching = false;
+                    break;
+                
+                case 2:
+                case 6:
+                    log_debug("still performing network registration, attempt %d/unlimited", counter);
+                    break;
+
+                default:
+                    registered = false;
+                    searching = true;
+                    break;
             }
         }
+
         lte_led = 0;
-        ThisThread::sleep_for(10s);
+        if (searching) {
+            ThisThread::sleep_for(10s);
+        }
     }
 
     if (registered) {
@@ -359,7 +384,9 @@ void lte_operator_registration() {
 }
 
 void lte_issue_read_messages_request() {
-    if (!lte_mutex.trylock_for(5s)) {
+    lte_parser->remove_oob(LTE_MQTT_UNREAD_MESSAGES);
+
+    if (!lte_mutex.trylock_for(60s)) {
         log_debug("skipping read messages, another using it?");
         return;
     }
@@ -371,7 +398,6 @@ void lte_issue_read_messages_request() {
         size_t buffer_idx = 0;
         size_t seperator_idx = 1;
         const char *seperator = "\r\n";
-        int unread_message_count = 0;
 
         bool completed = false;
         
@@ -403,14 +429,20 @@ void lte_issue_read_messages_request() {
                     }
 
                     completed = true;
-                } else if (sscanf(buffer, "+UUMQTTCM: 6,%d", &unread_message_count) == 1) {
-                    log_debug("unread messages: %d", unread_message_count);
                 } else if (sscanf(buffer, "Topic:%s", topic) == 1) {
                 } else if (sscanf(buffer, "Msg:%s", value) == 1) {
-                    log_debug("set %s to %s", topic, value);
-                    --unread_message_count;
+                    log_debug("setting %s to %s", topic, value);
 
-                    log_debug("remaining messages: %d", unread_message_count);
+                    if (strcmp("cabin/config/system-enabled", topic) == 0) {
+                       main_event_enable(SYSTEM, strcmp("true", value) == 0); 
+                    } else if (strcmp("cabin/config/lte-enabled", topic) == 0) {
+                       main_event_enable(LTE, strcmp("true", value) == 0); 
+                    } else if (strcmp("cabin/config/environment-enabled", topic) == 0) {
+                       main_event_enable(ENVIRONMENT, strcmp("true", value) == 0); 
+                    } else if (strcmp("cabin/config/battery-enabled", topic) == 0) {
+                       main_event_enable(BATTERY, strcmp("true", value) == 0); 
+                    }
+
                     memset(topic, 0, sizeof(topic));
                     memset(value, 0, sizeof(value));
                 }
@@ -426,6 +458,7 @@ void lte_issue_read_messages_request() {
     log_debug("exiting read messages");
     lte_parser->set_timeout(LTE_TIMEOUT);
     lte_mutex.unlock();
+    lte_parser->oob(LTE_MQTT_UNREAD_MESSAGES, lte_issue_read_messages_request);
 }
 
 void lte_handle_error() {
@@ -438,6 +471,7 @@ void lte_handle_error() {
     if (lte_state != LTE_ERROR && lte_error_count > LTE_ERROR_LIMIT) {
         lte_state = LTE_ERROR;
         lte_parser->abort();
+        lte_queue.call(lte_mqtt_login);
     }
 }
 
@@ -447,6 +481,7 @@ void lte_handle_op_not_allowed() {
     if (lte_state != LTE_ERROR && lte_operation_not_allowed_count > LTE_OP_NOT_ALLOWED_LIMIT) {
         lte_state = LTE_ERROR;
         lte_parser->abort();
+        lte_queue.call(lte_mqtt_login);
     }
 }
 
@@ -463,6 +498,7 @@ void lte_mqtt_login() {
     lte_parser->remove_oob(LTE_MQTT_LOGIN_FAILED);
     lte_parser->remove_oob(LTE_MQTT_OP_NOT_SUPPORTED);
     lte_parser->remove_oob(LTE_MQTT_ERROR);
+    lte_parser->remove_oob(LTE_MQTT_UNREAD_MESSAGES);
 
     lte_mutex.lock();
 
@@ -474,6 +510,7 @@ void lte_mqtt_login() {
     // handle failures
     lte_parser->oob(LTE_MQTT_LOGIN_FAILED, lte_handle_login_failed);
     lte_parser->oob(LTE_MQTT_OP_NOT_SUPPORTED, lte_handle_op_not_allowed);
+    lte_parser->oob(LTE_MQTT_OP_NOT_ALLOWED, lte_handle_op_not_allowed);
 
     bool setup_result = false;
     // mqtt configuration
@@ -503,6 +540,8 @@ void lte_mqtt_login() {
         // handle expected errors
         lte_parser->oob(LTE_MQTT_ERROR, lte_handle_error);
 
+        // handle published messages
+        lte_parser->oob(LTE_MQTT_UNREAD_MESSAGES, lte_issue_read_messages_request);
 
         // subscribe to configuration data
         if (lte_parser->send("AT+UMQTTC=4,1,\"cabin/config/+\"") && lte_parser->recv("+UMQTTC: 4,1")) {
@@ -517,8 +556,6 @@ void lte_mqtt_login() {
 
         cabin_status.publish_state(true, [](bool result){
             if (result) {
-                // schedule a refresh to read unread URC messages
-                lte_read_messages_id = lte_queue.call_every(320s, lte_issue_read_messages_request);
                 events_set(FLAG_SYSTEM_READY);
                 lte_led = 1;
             } else {
@@ -526,9 +563,6 @@ void lte_mqtt_login() {
                 lte_queue.call(lte_operator_registration);
             }
         });
-
-
-
     } else {
         // sleep for a bit
         ThisThread::sleep_for(3s);
@@ -583,4 +617,39 @@ bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool
 
     delete[] command;
     return result;
+}
+
+void lte_send_stats() {
+    if (lte_state == READY) {
+        lte_mutex.lock();
+    
+        int rssi, qual;
+        if (lte_parser->send("AT+CSQ") && lte_parser->recv("+CSQ: %d,%d", &rssi, &qual)) {
+
+            lte_publish("cabin/lte/rssi", "%d", NULL, 1000, true, rssi);
+            lte_publish("cabin/lte/quality", "%d", NULL, 1000, true, qual);
+        }
+        
+        lte_mutex.unlock();    
+    }
+
+    lte_ticker.attach(callback(lte_flip_send_bit), LTE_POLLING_PERIOD);
+}
+
+
+void lte_loop() {
+    if (lte_stats_send) {
+        lte_stats_send = false;
+        lte_ticker.detach();
+        lte_queue.call(lte_send_stats);
+    }
+}
+
+void lte_oob_loop() {
+    if (lte_mutex.trylock_for(100ms)) {
+        lte_parser->debug_on(false);
+        lte_parser->process_oob();
+        lte_parser->debug_on(true);
+        lte_mutex.unlock();
+    }
 }

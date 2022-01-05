@@ -23,6 +23,10 @@ void environment_read_data() {
 
     while (result != 0 && ++attempts < 10) {
         result = sensor.readData();
+
+        if (result == 0) {
+            break;
+        }
     }
 
     if (result == 0) {

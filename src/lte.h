@@ -47,12 +47,16 @@ constexpr char LTE_SHIELD_OPERATOR_SELECTION[] = "AT+COPS";
 constexpr char LTE_MQTT_URC_LOGGED_OUT[] = "+UUMQTTC: 1,3";
 constexpr char LTE_MQTT_LOGIN_FAILED[] = "+UMQTTC: 1,0";
 constexpr char LTE_MQTT_OP_NOT_SUPPORTED[] = "+CME ERROR: Operation not supported";
+constexpr char LTE_MQTT_OP_NOT_ALLOWED[] = "+CME ERROR: Operation not allowed";
 constexpr char LTE_MQTT_ERROR[] = "ERROR";
+constexpr char LTE_MQTT_UNREAD_MESSAGES[] = "+UUMQTTCM: 6,";
 
 void lte_discover_baud_rate();
 void lte_operator_registration();
 void lte_mqtt_login();
 void lte_init();
+void lte_loop();
+void lte_oob_loop();
 bool lte_publish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, ...);
 bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool)> _cb, int timeout, bool retain, va_list args);
 bool lte_send(const char *command, const char *expected_result, mbed::Callback<void(bool)> _cb = NULL, int timeout = LTE_TIMEOUT);
