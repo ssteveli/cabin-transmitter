@@ -5,6 +5,7 @@
 #include "events.h"
 #include "mqtt/mqtt_binary_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "util/debounce.h"
 
 using namespace std::chrono_literals;
 
@@ -13,8 +14,8 @@ DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
 
-InterruptIn green_button(PA_11);
-InterruptIn red_button(PB_5);
+DebounceInterruptIn green_button(PA_11, 300ms);
+DebounceInterruptIn red_button(PB_5, 300ms);
 
 const int lte_desired_baud = 115200;
 uint8_t lte_baud_selection_counter = 0;
