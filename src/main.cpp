@@ -2,12 +2,13 @@
 #include "main_event_handler.h"
 #include "lte.h"
 #include "log.h"
-#include "config.h"
+#include "local_config.h"
 #include "environment.h"
 #include "rtc.h"
 #include "system.h"
 #include "mqtt/mqtt_component_discovery.h"
 #include "battery_monitor.h"
+#include "cloud_config.h"
 
 static void main_init();
 
@@ -34,7 +35,8 @@ int main() {
 
 static void main_init() {
     log_init();
-    config_init();
+    local_config_init();
+    cloud_config_init();
     rtc_start();
     mqtt::mqtt_component_discovery_init();
     main_event_handler_init();

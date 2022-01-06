@@ -1,6 +1,6 @@
 #include "rtc.h"
 #include "sensors/ds1307.h"
-#include "config.h"
+#include "local_config.h"
 
 DS1307 ds1307(CB_I2C_SDA, CB_I2C_SCL);
 

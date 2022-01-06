@@ -2,9 +2,10 @@
 #include "mbed.h"
 #include "log.h"
 #include "sensors/DHT.h"
-#include "config.h"
+#include "local_config.h"
 #include "mqtt/mqtt_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "cloud_config.h"
 
 using namespace std::chrono_literals;
 
@@ -13,7 +14,6 @@ DHT sensor(DHT22_OUT, DHT22);
 mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/state");
 mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 
-#define ENV_POLLING_PERIOD 320s
 Ticker env_ticker;
 bool env_send = false;
 
@@ -50,7 +50,7 @@ void environment_init() {
     mqtt::mqtt_register_component(&temp);
     mqtt::mqtt_register_component(&humidity);
 
-    env_ticker.attach(callback(env_flip_send_bit), ENV_POLLING_PERIOD);
+    env_ticker.attach(callback(env_flip_send_bit), cloud_config()->environment_interval);
 }
 
 void environment_loop() {
@@ -58,6 +58,6 @@ void environment_loop() {
         env_ticker.detach();
         environment_read_data();
         env_send = false;
-        env_ticker.attach(callback(env_flip_send_bit), ENV_POLLING_PERIOD);
+        env_ticker.attach(callback(env_flip_send_bit), cloud_config()->environment_interval);
     }
 }

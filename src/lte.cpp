@@ -1,12 +1,10 @@
 #include "lte.h"
 #include "log.h"
-#include "config.h"
+#include "local_config.h"
+#include "cloud_config.h"
 #include "events.h"
 #include "mqtt/mqtt_binary_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
-#include "main_event_handler.h"
-
-#define LTE_POLLING_PERIOD 320s
 
 using namespace std::chrono_literals;
 
@@ -14,6 +12,9 @@ DigitalOut lte_led(LED3);
 DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
+
+InterruptIn green_button(PA_11);
+InterruptIn red_button(PB_5);
 
 const int lte_desired_baud = 115200;
 uint8_t lte_baud_selection_counter = 0;
@@ -138,7 +139,30 @@ void lte_flip_send_bit() {
     lte_stats_send = true;
 }
 
+void green_button_run() {
+    log_debug("green button pressed");
+    lte_mutex.lock();
+    lte_parser->process_oob();
+    lte_mutex.unlock();
+}
+
+void green_button_pressed() {
+    if (lte_state == READY)
+        lte_queue.call(green_button_run);
+}
+
+void red_button_pressed() {
+    lte_parser->abort();
+    lte_queue.call(lte_mqtt_login);
+}
+
 void lte_init() {
+    green_button.mode(PullDown);
+    green_button.rise(&green_button_pressed);
+
+    red_button.mode(PullDown);
+    red_button.rise(&red_button_pressed);
+
     lte_led = 0;
     if (lte_shield != NULL) {
         delete lte_shield;
@@ -166,7 +190,7 @@ void lte_init() {
     lte_queue.call(lte_discover_baud_rate);
 
     mqtt::mqtt_register_component(&cabin_status);
-    lte_ticker.attach(callback(lte_flip_send_bit), LTE_POLLING_PERIOD);
+    lte_ticker.attach(callback(lte_flip_send_bit), cloud_config()->lte_interval);
 }
 
 void lte_reset_tasks() {
@@ -430,17 +454,12 @@ void lte_issue_read_messages_request() {
 
                     completed = true;
                 } else if (sscanf(buffer, "Topic:%s", topic) == 1) {
-                } else if (sscanf(buffer, "Msg:%s", value) == 1) {
+                } else if (sscanf(buffer, "Msg:%[^\r\n]", value) == 1) {
                     log_debug("setting %s to %s", topic, value);
 
-                    if (strcmp("cabin/config/system-enabled", topic) == 0) {
-                       main_event_enable(SYSTEM, strcmp("true", value) == 0); 
-                    } else if (strcmp("cabin/config/lte-enabled", topic) == 0) {
-                       main_event_enable(LTE, strcmp("true", value) == 0); 
-                    } else if (strcmp("cabin/config/environment-enabled", topic) == 0) {
-                       main_event_enable(ENVIRONMENT, strcmp("true", value) == 0); 
-                    } else if (strcmp("cabin/config/battery-enabled", topic) == 0) {
-                       main_event_enable(BATTERY, strcmp("true", value) == 0); 
+                    if (strcmp("cabin/config", topic) == 0) {
+                        std::string json(value);
+                        cloud_config_set(json);
                     }
 
                     memset(topic, 0, sizeof(topic));
@@ -518,7 +537,7 @@ void lte_mqtt_login() {
     if (lte_parser->send("AT+UMQTTC=0") && lte_parser->recv("OK") && // mqtt logout
         lte_parser->send("AT+UMQTT=12,1") && lte_parser->recv("OK") && // mqtt clear session
         lte_parser->send("AT+UMQTT=0,\"cabin\"") && lte_parser->recv("+UMQTT: 0,1") && // set mqtt client id
-        lte_parser->send("AT+UMQTT=2,\"%s\",1883", get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
+        lte_parser->send("AT+UMQTT=2,\"%s\",1883", local_get_config_mqtt_hostname()) && lte_parser->recv("+UMQTT: 2,1") && // mqtt connection information
         lte_parser->send("AT+UMQTT=10,30") && lte_parser->recv("+UMQTT: 10,1") && // set mqtt inactivity timeout
         lte_parser->send("AT+UMQTTWTOPIC=1,1,\"cabin/status\"") && lte_parser->recv("OK") && // mqtt last will topic
         lte_parser->send("AT+UMQTTWMSG=\"OFF\"") && lte_parser->recv("OK") // mqtt last will message
@@ -544,7 +563,7 @@ void lte_mqtt_login() {
         lte_parser->oob(LTE_MQTT_UNREAD_MESSAGES, lte_issue_read_messages_request);
 
         // subscribe to configuration data
-        if (lte_parser->send("AT+UMQTTC=4,1,\"cabin/config/+\"") && lte_parser->recv("+UMQTTC: 4,1")) {
+        if (lte_parser->send("AT+UMQTTC=4,1,\"cabin/config\"") && lte_parser->recv("+UMQTTC: 4,1")) {
             
             log_debug("subscribed to cabin/config");
         }
@@ -633,7 +652,7 @@ void lte_send_stats() {
         lte_mutex.unlock();    
     }
 
-    lte_ticker.attach(callback(lte_flip_send_bit), LTE_POLLING_PERIOD);
+    lte_ticker.attach(callback(lte_flip_send_bit), cloud_config()->lte_interval);
 }
 
 

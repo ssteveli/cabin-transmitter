@@ -1,13 +1,16 @@
 #include "battery_monitor.h"
 #include "mbed.h"
 #include "log.h"
-#include "config.h"
+#include "local_config.h"
 #include "mqtt/mqtt_sensor.h"
 #include "mqtt/mqtt_component_discovery.h"
+#include "cloud_config.h"
 
 mqtt::MQTTSensor battery_volts("cabin_battery", "hass:battery", "cabin/battery/volts/state");
 
-#define BAT_POLLING_PERIOD 120s
+//#define BAT_POLLING_PERIOD 120s
+#define BAT_POLLING_PERIOD 10s
+
 Ticker bat_ticker;
 bool bat_send = false;
 
@@ -28,7 +31,7 @@ void bat_init() {
 
     mqtt::mqtt_register_component(&battery_volts);
 
-    bat_ticker.attach(callback(bat_flip_send_bit), BAT_POLLING_PERIOD);
+    bat_ticker.attach(callback(bat_flip_send_bit), cloud_config()->battery_interval);
 }
 
 void bat_loop() {
@@ -36,6 +39,6 @@ void bat_loop() {
         bat_ticker.detach();
         bat_read_data();
         bat_send = false;
-        bat_ticker.attach(callback(bat_flip_send_bit), BAT_POLLING_PERIOD);
+        bat_ticker.attach(callback(bat_flip_send_bit), cloud_config()->battery_interval);
     }
 }

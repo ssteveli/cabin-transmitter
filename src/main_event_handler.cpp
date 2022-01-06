@@ -7,11 +7,9 @@
 #include "mqtt/mqtt_component_discovery.h"
 #include "battery_monitor.h"
 #include "lte.h"
-#include <vector>
+#include "cloud_config.h"
 
 Thread main_event_startup_thread;
-
-std::vector<service_t> enabled_services;
 
 void main_event_startup_worker() {
     while (true) {
@@ -32,38 +30,19 @@ void main_event_handler_init() {
     log_info("main_event_handler is ready");
 }
 
-void main_event_enable(service_t service, bool enabled) {
-    if (enabled) {
-        enabled_services.push_back(service);
-    } else {
-        std::remove(enabled_services.begin(), enabled_services.end(), service);
-    }
-}
-
 void main_event_handler_loop() {
     // process any inbound async messages
     lte_oob_loop();
 
-    for (const service_t service : enabled_services) {
-        switch (service) {
-            case ENVIRONMENT:
-                environment_loop();
-                break;
-            
-            case SYSTEM:
-                system_loop();
-                break;
-            
-            case BATTERY:
-                bat_loop();
-                break;
+    if (cloud_config()->environment_enabled) 
+        environment_loop();
 
-            case LTE:
-                lte_loop();
-                break;
-                
-            default:
-                break;
-        }
-    }
+    if (cloud_config()->system_enabled)
+        system_loop();
+    
+    if (cloud_config()->battery_enabled)
+        bat_loop();
+    
+    if (cloud_config()->lte_enabled) 
+        lte_loop();
 }

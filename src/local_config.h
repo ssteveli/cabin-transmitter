@@ -1,5 +1,5 @@
-#ifndef SRC_CONFIG_H_
-#define SRC_CONFIG_H_
+#ifndef SRC_LOCAL_CONFIG_H_
+#define SRC_LOCAL_CONFIG_H_
 
 #ifdef TARGET_NUCLEO_L432KC
 #define CB_I2C_SDA PB_4
@@ -25,7 +25,7 @@
 
 #define LTE_AUTO_DISCOVERY
 
-void config_init();
-const char* get_config_mqtt_hostname();
+void local_config_init();
+const char* local_get_config_mqtt_hostname();
 
 #endif

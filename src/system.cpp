@@ -6,8 +6,7 @@
 #include "mqtt/mqtt_sensor.h"
 #include "config.h"
 #include "mqtt/mqtt_component_discovery.h"
-
-#define SAMPLE_TIME_MS   2000
+#include "cloud_config.h"
 
 mbed_stats_heap_t heap_info;
 mbed_stats_cpu_t stats;
@@ -23,7 +22,7 @@ mqtt::MQTTSensor heap_current_size("cabin_heap_current_size", "hass:account", "c
 mqtt::MQTTSensor heap_max_size("cabin_heap_max_size", "hass:account", "cabin/system/heap/max_size/state");
 mqtt::MQTTSensor heap_total_size("cabin_heap_total_size", "hass:account", "cabin/system/heap/total_size/state");
 
-#define SYS_POLLING_PERIOD 320s
+
 Ticker sys_ticker;
 bool sys_send = false;
 
@@ -53,7 +52,7 @@ void system_init() {
     mqtt::mqtt_register_component(&heap_max_size);
     mqtt::mqtt_register_component(&heap_total_size);
 
-    sys_ticker.attach(&system_flip_send_bit, SYS_POLLING_PERIOD);
+    sys_ticker.attach(&system_flip_send_bit, cloud_config()->system_interval);
 }
 
 void system_loop() {
@@ -61,6 +60,6 @@ void system_loop() {
         sys_ticker.detach();
         system_read_data();
         sys_send = false;
-        sys_ticker.attach(&system_flip_send_bit, SYS_POLLING_PERIOD);
+        sys_ticker.attach(&system_flip_send_bit, cloud_config()->system_interval);
     }
 }
