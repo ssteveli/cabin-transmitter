@@ -63,11 +63,14 @@ void env_read_data_from_sensor() {
 void env_schedule_publish() {
     if (env_send_id != -1) {
         mbed_event_queue()->cancel(env_send_id);
+        env_send_id = -1;
     }
 
     env_interval = cloud_config()->environment_interval;
-    std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
-    env_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), environment_publish_data);
+    if (cloud_config()->environment_enabled) {
+        std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
+        env_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), environment_publish_data);
+    }
 }
 
 void environment_init() {
@@ -85,6 +88,8 @@ void environment_init() {
 }
 
 void environment_loop() {
-    if (cloud_config()->environment_interval != env_interval) 
+    bool currently_enabled = env_send_id != -1;
+    if (cloud_config()->environment_enabled != currently_enabled || cloud_config()->environment_interval != env_interval) {
         env_schedule_publish();
+    }
 }

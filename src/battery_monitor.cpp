@@ -25,11 +25,14 @@ float bat_read_voltage() {
 void bat_schedule_publish() {
     if (bat_send_id != -1) {
         mbed_event_queue()->cancel(bat_send_id);
+        bat_send_id = -1;
     }
 
     bat_interval = cloud_config()->battery_interval;
-    std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
-    bat_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), bat_publish_data);
+    if (cloud_config()->battery_enabled) {
+        std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
+        bat_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), bat_publish_data);
+    }
 }
 
 void bat_init() {
@@ -43,6 +46,8 @@ void bat_init() {
 }
 
 void bat_loop() {
-    if (cloud_config()->battery_interval != bat_interval) 
+    bool currently_enabled = bat_send_id != -1;
+    if (cloud_config()->battery_enabled != currently_enabled || cloud_config()->battery_interval != bat_interval) {
         bat_schedule_publish();
+    }
 }

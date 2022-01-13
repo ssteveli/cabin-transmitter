@@ -8,6 +8,7 @@
 #include "util/debounce.h"
 
 using namespace std::chrono_literals;
+using duration = std::chrono::duration<int, std::milli>;
 
 DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
@@ -22,8 +23,9 @@ ATCmdParser *lte_parser;
 Thread lte_thread;
 
 Mutex lte_mutex;
-Ticker lte_ticker;
-bool lte_stats_send = false;
+
+std::chrono::microseconds lte_interval;
+int lte_send_id = -1;
 
 bool lte_pwr_vs_hw_reset_cycle = true;
 
@@ -132,8 +134,32 @@ void lte_send_thread_handler() {
     }
 }
 
-void lte_flip_send_bit() {
-    lte_stats_send = true;
+void lte_publish_stats() {
+    if (lte_state == READY) {
+        lte_mutex.lock();
+    
+        int rssi, qual;
+        if (lte_parser->send("AT+CSQ") && lte_parser->recv("+CSQ: %d,%d", &rssi, &qual)) {
+
+            lte_publish("cabin/lte/rssi", "%d", NULL, 1000, true, rssi);
+            lte_publish("cabin/lte/quality", "%d", NULL, 1000, true, qual);
+        }
+        
+        lte_mutex.unlock();    
+    }
+}
+
+void lte_schedule_publish() {
+    if (lte_send_id != -1) {
+        mbed_event_queue()->cancel(lte_send_id);
+        lte_send_id = -1;
+    }
+
+    lte_interval = cloud_config()->data_logger_interval;
+    if (cloud_config()->lte_enabled) {
+        std::chrono::duration<int, std::micro> d(cloud_config()->lte_interval);
+        lte_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), lte_publish_stats);
+    }
 }
 
 void lte_init() {
@@ -163,7 +189,7 @@ void lte_init() {
     lte_queue.call(lte_discover_baud_rate);
 
     mqtt::mqtt_register_component(&cabin_status);
-    lte_ticker.attach(callback(lte_flip_send_bit), cloud_config()->lte_interval);
+    lte_schedule_publish();
 }
 
 void lte_reset_tasks() {
@@ -605,37 +631,16 @@ bool lte_vpublish(const char *topic, const char *value, mbed::Callback<void(bool
     return result;
 }
 
-void lte_send_stats() {
-    if (lte_state == READY) {
-        lte_mutex.lock();
-    
-        int rssi, qual;
-        if (lte_parser->send("AT+CSQ") && lte_parser->recv("+CSQ: %d,%d", &rssi, &qual)) {
-
-            lte_publish("cabin/lte/rssi", "%d", NULL, 1000, true, rssi);
-            lte_publish("cabin/lte/quality", "%d", NULL, 1000, true, qual);
-        }
-        
-        lte_mutex.unlock();    
-    }
-
-    lte_ticker.attach(callback(lte_flip_send_bit), cloud_config()->lte_interval);
-}
-
-
 void lte_loop() {
-    if (lte_stats_send) {
-        lte_stats_send = false;
-        lte_ticker.detach();
-        lte_queue.call(lte_send_stats);
-    }
-}
-
-void lte_oob_loop() {
     if (lte_mutex.trylock_for(100ms)) {
         lte_parser->debug_on(false);
         lte_parser->process_oob();
         lte_parser->debug_on(true);
         lte_mutex.unlock();
+    }
+
+    bool currently_enabled = lte_send_id != -1;
+    if (cloud_config()->lte_enabled != currently_enabled || cloud_config()->lte_interval != lte_interval) {
+        lte_schedule_publish();
     }
 }

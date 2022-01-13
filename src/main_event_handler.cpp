@@ -32,21 +32,9 @@ void main_event_handler_init() {
 }
 
 void main_event_handler_loop() {
-    // process any inbound async messages
-    lte_oob_loop();
-
-    if (cloud_config()->environment_enabled) 
-        environment_loop();
-
-    if (cloud_config()->system_enabled)
-        system_loop();
-    
-    if (cloud_config()->battery_enabled)
-        bat_loop();
-    
-    if (cloud_config()->lte_enabled) 
-        lte_loop();
-
-    if (cloud_config()->data_logger_enabled) 
-        data_logger_loop();
+    lte_loop();
+    environment_loop();
+    system_loop();
+    bat_loop();
+    data_logger_loop();
 }

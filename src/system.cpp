@@ -8,6 +8,8 @@
 #include "mqtt/mqtt_component_discovery.h"
 #include "cloud_config.h"
 
+using duration = std::chrono::duration<int, std::milli>;
+
 mbed_stats_heap_t heap_info;
 mbed_stats_cpu_t stats;
 uint64_t prev_idle_time = 0;
@@ -22,9 +24,8 @@ mqtt::MQTTSensor heap_current_size("cabin_heap_current_size", "hass:account", "c
 mqtt::MQTTSensor heap_max_size("cabin_heap_max_size", "hass:account", "cabin/system/heap/max_size/state");
 mqtt::MQTTSensor heap_total_size("cabin_heap_total_size", "hass:account", "cabin/system/heap/total_size/state");
 
-
-Ticker sys_ticker;
-bool sys_send = false;
+int sys_send_id = -1;
+std::chrono::microseconds sys_interval;
 
 void system_startup() {
     mbed_stats_sys_t sys_stats;
@@ -33,7 +34,7 @@ void system_startup() {
     os_version.publish_state(sys_stats.os_version);
 }
 
-void system_read_data() {
+void sys_publish_data() {
     // heap
     mbed_stats_heap_get(&heap_info);
 
@@ -42,8 +43,17 @@ void system_read_data() {
     heap_total_size.publish_state(heap_info.total_size);
 }
 
-void system_flip_send_bit() {
-    sys_send = true;
+void sys_schedule_publish() {
+    if (sys_send_id != -1) {
+        mbed_event_queue()->cancel(sys_send_id);
+        sys_send_id = -1;
+    }
+
+    sys_interval = cloud_config()->system_interval;
+    if (cloud_config()->system_enabled) {
+        std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
+        sys_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), sys_publish_data);
+    }
 }
 
 void system_init() {
@@ -52,14 +62,12 @@ void system_init() {
     mqtt::mqtt_register_component(&heap_max_size);
     mqtt::mqtt_register_component(&heap_total_size);
 
-    sys_ticker.attach(&system_flip_send_bit, cloud_config()->system_interval);
+    sys_schedule_publish();
 }
 
 void system_loop() {
-    if (sys_send) {
-        sys_ticker.detach();
-        system_read_data();
-        sys_send = false;
-        sys_ticker.attach(&system_flip_send_bit, cloud_config()->system_interval);
+    bool currently_enabled = sys_send_id != -1;
+    if (cloud_config()->system_enabled != currently_enabled || cloud_config()->system_interval != sys_interval) {
+        sys_schedule_publish();
     }
 }

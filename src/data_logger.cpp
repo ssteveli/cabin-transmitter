@@ -8,21 +8,13 @@
 #include "environment.h"
 #include "battery_monitor.h"
 
-#define FORCE_REFORMAT 0
+using duration = std::chrono::duration<int, std::milli>;
 
 BlockDevice *bd = BlockDevice::get_default_instance();
 FileSystem *fs = FileSystem::get_default_instance();
 
-Ticker data_logger_ticker;
-bool data_record = false;
-
-void data_logger_send_bit() {
-    data_record = true;
-}
-
-void data_logger_init() {
-    data_logger_ticker.attach(callback(data_logger_send_bit), cloud_config()->data_logger_interval);
-}
+std::chrono::microseconds data_interval;
+int data_send_id = -1;
 
 void data_logger_log_data() {
     log_debug("data logger recording");
@@ -61,11 +53,26 @@ void data_logger_log_data() {
     fclose(f);
 }
 
+void data_schedule_publish() {
+    if (data_send_id != -1) {
+        mbed_event_queue()->cancel(data_send_id);
+        data_send_id = -1;
+    }
+
+    data_interval = cloud_config()->data_logger_interval;
+    if (cloud_config()->data_logger_enabled) {
+        std::chrono::duration<int, std::micro> d(cloud_config()->data_logger_interval);
+        data_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), data_logger_log_data);
+    }
+}
+
+void data_logger_init() {
+    data_schedule_publish();
+}
+
 void data_logger_loop() {
-     if (data_record) {
-        data_logger_ticker.detach();
-        data_record = false;
-        data_logger_log_data();
-        data_logger_ticker.attach(callback(data_logger_send_bit), cloud_config()->data_logger_interval);
+    bool currently_enabled = data_send_id != -1;
+    if (cloud_config()->data_logger_enabled != currently_enabled || cloud_config()->data_logger_interval != data_interval) {
+        data_schedule_publish();
     }
 }
