@@ -6,14 +6,15 @@
 #include "mqtt/mqtt_component_discovery.h"
 #include "cloud_config.h"
 
+using duration = std::chrono::duration<int, std::milli>;
+
 mqtt::MQTTSensor battery_volts("cabin_battery", "hass:battery", "cabin/battery/volts/state");
 
-Ticker bat_ticker;
-bool bat_send = false;
-
 AnalogIn bat_in(BAT);
+int bat_send_id = -1;
+std::chrono::microseconds bat_interval;
 
-void bat_read_data() {
+void bat_publish_data() {
     battery_volts.publish_state(bat_in.read_voltage());
 }
 
@@ -21,8 +22,14 @@ float bat_read_voltage() {
     return bat_in.read_voltage();
 }
 
-void bat_flip_send_bit() {
-    bat_send = true;
+void bat_schedule_publish() {
+    if (bat_send_id != -1) {
+        mbed_event_queue()->cancel(bat_send_id);
+    }
+
+    bat_interval = cloud_config()->battery_interval;
+    std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
+    bat_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), bat_publish_data);
 }
 
 void bat_init() {
@@ -32,14 +39,10 @@ void bat_init() {
 
     mqtt::mqtt_register_component(&battery_volts);
 
-    bat_ticker.attach(callback(bat_flip_send_bit), cloud_config()->battery_interval);
+    bat_schedule_publish();
 }
 
 void bat_loop() {
-    if (bat_send) {
-        bat_ticker.detach();
-        bat_read_data();
-        bat_send = false;
-        bat_ticker.attach(callback(bat_flip_send_bit), cloud_config()->battery_interval);
-    }
+    if (cloud_config()->battery_interval != bat_interval) 
+        bat_schedule_publish();
 }

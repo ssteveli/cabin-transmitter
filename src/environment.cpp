@@ -8,18 +8,16 @@
 #include "cloud_config.h"
 
 using namespace std::chrono_literals;
+using duration = std::chrono::duration<int, std::milli>;
 
 DHT sensor(DHT22_OUT, DHT22);
 
 mqtt::MQTTSensor temp("cabin_temperature", "hass:thermometer", "cabin/env/temp/state");
 mqtt::MQTTSensor humidity("cabin_humidity", "hass:water-percent", "cabin/env/humidity/state");
 
-Ticker env_ticker;
-bool env_send = false;
-
-Ticker env_reader;
-int env_last_read_result = 99;
-bool env_need_read = true;
+std::chrono::microseconds env_interval;
+int env_send_id = -1;
+int env_last_read_result = 1;
 
 void environment_publish_data() {
     if (env_last_read_result == 0) {
@@ -44,14 +42,6 @@ int environment_read_humidity(float *f) {
     return env_last_read_result;
 }
 
-void env_flip_send_bit() {
-    env_send = true;
-}
-
-void env_flip_need_bit() {
-    env_need_read = true;
-}
-
 void env_read_data_from_sensor() {
     int result = -1;
     int attempts = 0;
@@ -68,7 +58,16 @@ void env_read_data_from_sensor() {
 
     log_debug("dht22 read result: %d", result);
     env_last_read_result = result;
-    env_need_read = false;
+}
+
+void env_schedule_publish() {
+    if (env_send_id != -1) {
+        mbed_event_queue()->cancel(env_send_id);
+    }
+
+    env_interval = cloud_config()->environment_interval;
+    std::chrono::duration<int, std::micro> d(cloud_config()->environment_interval);
+    env_send_id = mbed_event_queue()->call_every(std::chrono::duration_cast<duration>(d), environment_publish_data);
 }
 
 void environment_init() {
@@ -80,19 +79,12 @@ void environment_init() {
     mqtt::mqtt_register_component(&temp);
     mqtt::mqtt_register_component(&humidity);
 
-    env_ticker.attach(callback(env_flip_send_bit), cloud_config()->environment_interval);
-    env_reader.attach(callback(env_flip_need_bit), 60s);
+    env_read_data_from_sensor();
+    mbed_event_queue()->call_every(120s, env_read_data_from_sensor);
+    env_schedule_publish();
 }
 
 void environment_loop() {
-    if (env_need_read) {
-        env_read_data_from_sensor();
-    }
-
-    if (env_send) {
-        env_ticker.detach();
-        environment_publish_data();
-        env_send = false;
-        env_ticker.attach(callback(env_flip_send_bit), cloud_config()->environment_interval);
-    }
+    if (cloud_config()->environment_interval != env_interval) 
+        env_schedule_publish();
 }
