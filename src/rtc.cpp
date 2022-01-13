@@ -7,7 +7,6 @@ DS1307 ds1307(CB_I2C_SDA, CB_I2C_SCL);
 static  const uint8_t monthDays[] = { 31,28,31,30,31,30,31,31,30,31,30,31 }; // API starts months from 1, this array starts from 0
  
 void rtc_start() {
-
 }
 
 int rtc_read_time(rtc_time_t *t) {

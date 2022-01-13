@@ -33,20 +33,25 @@ void data_logger_log_data() {
  
     FILE *f = fopen(data_filename, "a");
     if (f) {
+        rtc_time_t t;
+        if (rtc_read_time(&t) != 0) {
+            log_debug("rtc read failed");
+        }
+
         float value;
         if (environment_read_temperature(&value) == 0) {
-            fprintf(f, "temp,XX,%0.2f\n", value);
+            fprintf(f, "temp,%02d/%02d/%d %02d:%02d:%02d,%0.2f\n", t.month, t.date, t.year, t.hours, t.minute, t.second, value);
         } else {
             log_debug("failed to log temp data");
         }
 
         if (environment_read_humidity(&value) == 0) {
-            fprintf(f, "humidity,XX,%0.2f\n", value);
+            fprintf(f, "humidity,%02d/%02d/%d %02d:%02d:%02d,%0.2f\n", t.month, t.date, t.year, t.hours, t.minute, t.second, value);
         } else {
             log_debug("failed to log humidity data");
         }
 
-        fprintf(f, "bat,XX,%0.2f\n", bat_read_voltage());
+        fprintf(f, "bat,%02d/%02d/%d %02d:%02d:%02d,%0.2f\n", t.month, t.date, t.year, t.hours, t.minute, t.second, bat_read_voltage());
         fclose(f);
     } else {
         log_info("failed data logger, no data file");

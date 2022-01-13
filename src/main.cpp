@@ -22,7 +22,7 @@ int main() {
         log_debug("time: %02d/%02d/%d %02d:%02d:%02d", t.month, t.date, t.year, t.hours, t.minute, t.second);
         log_debug("############################################################");
     } else {
-        log_debug("rtc failed");
+        log_info("rtc failed to read");
     }
 
 
