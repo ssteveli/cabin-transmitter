@@ -3,5 +3,6 @@
 
 void bat_init();
 void bat_loop();
+float bat_read_voltage();
 
 #endif

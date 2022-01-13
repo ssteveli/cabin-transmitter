@@ -4,7 +4,7 @@
 #ifdef TARGET_NUCLEO_L432KC
 #define CB_I2C_SDA PB_7
 #define CB_I2C_SCL PB_6
-#define DHT22_OUT PA_5
+#define DHT22_OUT PB_1
 #define LTE_PWR PA_7
 #define LTE_RST PA_6
 #define LTE_RX PA_10

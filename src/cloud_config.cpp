@@ -73,6 +73,14 @@ void cloud_config_set(std::string json) {
     else
       cloud_config_current.data_logger_enabled = true;
 
+    if (doc.containsKey("data_logger_interval")) {
+      int duration = doc["data_logger_interval"].as<int>();
+      auto ms = std::chrono::duration<int, std::milli>(duration);
+      cloud_config_current.data_logger_interval = std::chrono::duration_cast<std::chrono::microseconds>(ms);
+    } else {
+      cloud_config_current.data_logger_interval = DEFAULT_INTERVAL;
+    }
+    
     return;
 }
 

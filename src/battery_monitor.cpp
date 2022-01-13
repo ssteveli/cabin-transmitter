@@ -17,6 +17,10 @@ void bat_read_data() {
     battery_volts.publish_state(bat_in.read_voltage());
 }
 
+float bat_read_voltage() {
+    return bat_in.read_voltage();
+}
+
 void bat_flip_send_bit() {
     bat_send = true;
 }
