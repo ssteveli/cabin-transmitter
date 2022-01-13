@@ -9,6 +9,7 @@
 #include "mqtt/mqtt_component_discovery.h"
 #include "battery_monitor.h"
 #include "cloud_config.h"
+#include "data_logger.h"
 
 static void main_init();
 
@@ -44,4 +45,5 @@ static void main_init() {
     system_init();
     environment_init();
     bat_init();
+    data_logger_init();
 }

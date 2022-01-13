@@ -15,6 +15,7 @@ typedef struct {
     std::chrono::microseconds battery_interval = DEFAULT_INTERVAL;
     bool lte_enabled = true;
     std::chrono::microseconds lte_interval = DEFAULT_INTERVAL;
+    bool data_logger_enabled = true;
 } cloud_config_t;
 
 void cloud_config_init();

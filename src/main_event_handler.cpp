@@ -8,6 +8,7 @@
 #include "battery_monitor.h"
 #include "lte.h"
 #include "cloud_config.h"
+#include "data_logger.h"
 
 Thread main_event_startup_thread;
 
@@ -45,4 +46,7 @@ void main_event_handler_loop() {
     
     if (cloud_config()->lte_enabled) 
         lte_loop();
+
+    if (cloud_config()->data_logger_enabled) 
+        data_logger_loop();
 }

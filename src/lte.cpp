@@ -9,13 +9,9 @@
 
 using namespace std::chrono_literals;
 
-DigitalOut lte_led(LED3);
 DigitalOut lte_power_pin(LTE_PWR);
 DigitalOut lte_reset_pin(LTE_RST);
 EventQueue lte_queue(32 * EVENTS_EVENT_SIZE);
-
-DebounceInterruptIn green_button(PA_11, 300ms);
-DebounceInterruptIn red_button(PB_5, 300ms);
 
 const int lte_desired_baud = 115200;
 uint8_t lte_baud_selection_counter = 0;
@@ -140,31 +136,7 @@ void lte_flip_send_bit() {
     lte_stats_send = true;
 }
 
-void green_button_run() {
-    log_debug("green button pressed");
-    lte_mutex.lock();
-    lte_parser->process_oob();
-    lte_mutex.unlock();
-}
-
-void green_button_pressed() {
-    if (lte_state == READY)
-        lte_queue.call(green_button_run);
-}
-
-void red_button_pressed() {
-    lte_parser->abort();
-    lte_queue.call(lte_mqtt_login);
-}
-
 void lte_init() {
-    green_button.mode(PullDown);
-    green_button.rise(&green_button_pressed);
-
-    red_button.mode(PullDown);
-    red_button.rise(&red_button_pressed);
-
-    lte_led = 0;
     if (lte_shield != NULL) {
         delete lte_shield;
     }
@@ -195,7 +167,6 @@ void lte_init() {
 }
 
 void lte_reset_tasks() {
-    lte_led = 0;
     lte_parser->abort();
     lte_error_count = 0;
     lte_operation_not_allowed_count = 0;
@@ -311,12 +282,10 @@ void lte_operator_registration() {
     uint16_t counter = 0;
 
     while (searching) {
-        lte_led = 1;
         if (lte_parser->send("AT+CEREG?")) {
             int eps_status;
 
             if (!lte_parser->recv("+CEREG: %*d,%d", &eps_status)) {
-                lte_led = 0;
                 lte_cycle();
                 lte_queue.call(lte_discover_baud_rate);
                 lte_mutex.unlock();
@@ -345,7 +314,6 @@ void lte_operator_registration() {
             }
         }
 
-        lte_led = 0;
         if (searching) {
             ThisThread::sleep_for(10s);
         }
@@ -506,7 +474,6 @@ void lte_handle_op_not_allowed() {
 }
 
 void lte_handle_login_failed() {
-    lte_led = 0;
     ThisThread::sleep_for(2s);
     lte_parser->abort();
 }
@@ -577,7 +544,6 @@ void lte_mqtt_login() {
         cabin_status.publish_state(true, [](bool result){
             if (result) {
                 events_set(FLAG_SYSTEM_READY);
-                lte_led = 1;
             } else {
                 log_debug("not able to publish cabin state online");
                 lte_queue.call(lte_operator_registration);

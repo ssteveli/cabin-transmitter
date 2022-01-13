@@ -8,9 +8,6 @@
 
 mqtt::MQTTSensor battery_volts("cabin_battery", "hass:battery", "cabin/battery/volts/state");
 
-//#define BAT_POLLING_PERIOD 120s
-#define BAT_POLLING_PERIOD 10s
-
 Ticker bat_ticker;
 bool bat_send = false;
 

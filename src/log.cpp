@@ -2,6 +2,7 @@
 #include "mbed.h"
 
 void log_init() {
+    printf("\n\nCABIN MONITOR v1.0\n\n");
 }
 
 void log_debug(const char *msg, ...) {

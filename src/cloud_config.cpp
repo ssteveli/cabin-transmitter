@@ -68,6 +68,11 @@ void cloud_config_set(std::string json) {
       cloud_config_current.system_interval = DEFAULT_INTERVAL;
     }
 
+    if (doc.containsKey("data_logger_enabled"))
+      cloud_config_current.data_logger_enabled = doc["data_logger_enabled"].as<bool>();
+    else
+      cloud_config_current.data_logger_enabled = true;
+
     return;
 }
 
