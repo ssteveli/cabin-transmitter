@@ -11,6 +11,7 @@
 #include "cloud_config.h"
 #include "data_logger.h"
 
+const uint32_t TIMEOUT_MS = 5000;
 static void main_init();
 
 int main() {
@@ -31,10 +32,14 @@ int main() {
         main_event_handler_loop();
         
         ThisThread::yield();
+        Watchdog::get_instance().kick();
     }
 }
 
 static void main_init() {
+    Watchdog &watchdog = Watchdog::get_instance();
+    watchdog.start(TIMEOUT_MS);
+
     log_init();
     local_config_init();
     cloud_config_init();
